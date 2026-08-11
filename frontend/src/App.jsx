@@ -59,6 +59,11 @@ function App() {
   const [manager, setManager] = useState('');
   const [accountType, setAccountType] = useState('employee');
 
+  // --- ÉTATS PHOTO & PIÈCE D'IDENTITÉ (ajout à la création) ---
+  const [newAvatarFile, setNewAvatarFile] = useState(null);
+  const [newIdDocFile, setNewIdDocFile] = useState(null);
+  const [isSubmittingNewEmployee, setIsSubmittingNewEmployee] = useState(false);
+
   const [irsa, setIrsa] = useState('');
   const [cnaps, setCnaps] = useState('');
   const [ostie, setOstie] = useState('');
@@ -336,6 +341,8 @@ function App() {
     setCnaps('');
     setOstie('');
     setAccountType('employee');
+    setNewAvatarFile(null);
+    setNewIdDocFile(null);
     setError('');
     setSuccess('');
   };
@@ -345,6 +352,7 @@ function App() {
     e.preventDefault();
     setError('');
     setSuccess('');
+    setIsSubmittingNewEmployee(true);
 
     const newCollaborator = {
       name,
@@ -365,7 +373,8 @@ function App() {
           ostie: ostie ? `${ostie} Ar` : "0 Ar"
         }
       },
-      onboardingDocs: { idCard: false, signedContract: false, rib: false }
+      // Si une pièce d'identité est fournie tout de suite, on la coche directement
+      onboardingDocs: { idCard: !!newIdDocFile, signedContract: false, rib: false }
     };
 
     try {
@@ -377,19 +386,74 @@ function App() {
 
       const data = await response.json();
 
-      if (response.ok) {
-        const tempPasswordNote = data.tempPassword
-          ? ` Mot de passe temporaire à transmettre à l'employé : ${data.tempPassword}`
-          : '';
-        setSuccess(`✨ Profil créé et synchronisé avec succès !${tempPasswordNote}`);
-        fetchUsers();
-        setTimeout(() => { handleCloseModal(); }, 2500);
-      } else {
+      if (!response.ok) {
         setError(data.message || "Erreur lors de l'enregistrement.");
+        setIsSubmittingNewEmployee(false);
+        return;
       }
+
+      const createdEmail = data.user?.email || email;
+      let finalAvatarUrl = "";
+
+      // --- Upload de la photo de profil, si fournie ---
+      if (newAvatarFile) {
+        try {
+          const avatarForm = new FormData();
+          avatarForm.append('avatar', newAvatarFile);
+          const avatarRes = await fetch(`${API_URL}/api/upload-avatar`, {
+            method: 'POST',
+            headers: { 'Authorization': `Bearer ${localStorage.getItem('masoandro_token')}` },
+            body: avatarForm
+          });
+          if (avatarRes.ok) {
+            const avatarData = await avatarRes.json();
+            finalAvatarUrl = `${API_URL}${avatarData.avatarUrl}`;
+          }
+        } catch (err) {
+          console.error("Erreur upload photo à la création :", err);
+        }
+      }
+
+      // Si on a une photo, on met à jour la fiche fraîchement créée avec l'URL
+      if (finalAvatarUrl) {
+        try {
+          await fetch(`${API_URL}/api/users/${encodeURIComponent(createdEmail)}`, {
+            method: 'PUT',
+            headers: authHeaders(),
+            body: JSON.stringify({ ...data.user, avatarUrl: finalAvatarUrl })
+          });
+        } catch (err) {
+          console.error("Erreur mise à jour avatar :", err);
+        }
+      }
+
+      // --- Upload de la pièce d'identité (CIN / Passeport), si fournie ---
+      if (newIdDocFile) {
+        try {
+          const docForm = new FormData();
+          docForm.append('document', newIdDocFile);
+          docForm.append('email', createdEmail);
+          await fetch(`${API_URL}/api/upload-attachment`, {
+            method: 'POST',
+            headers: { 'Authorization': `Bearer ${localStorage.getItem('masoandro_token')}` },
+            body: docForm
+          });
+        } catch (err) {
+          console.error("Erreur upload pièce d'identité à la création :", err);
+        }
+      }
+
+      const tempPasswordNote = data.tempPassword
+        ? ` Mot de passe temporaire à transmettre à l'employé : ${data.tempPassword}`
+        : '';
+      setSuccess(`✨ Profil créé et synchronisé avec succès !${tempPasswordNote}`);
+      fetchUsers();
+      setTimeout(() => { handleCloseModal(); }, 2500);
     } catch (err) {
       setError("Erreur de connexion : Vérifiez que votre serveur Node est bien allumé !");
       console.error("Erreur d'ajout :", err);
+    } finally {
+      setIsSubmittingNewEmployee(false);
     }
   };
 
@@ -725,14 +789,22 @@ function App() {
     return Math.max(0, brut - totalRetenues);
   };
 
-  const filteredUsers = users.filter(user =>
+  // ⭐ MODIFICATION : on exclut les comptes admin de la liste "employés"
+  // (annuaire, statistiques du tableau de bord, recherche) — un admin
+  // n'est pas un employé et ne doit pas apparaître dans ces listes,
+  // qu'il vienne du compte automatique (.env) ou d'un admin créé manuellement
+  // via le formulaire "Ajouter nouveau employé".
+  const employeesOnly = users.filter(u => u.accountType !== 'admin');
+
+  const filteredUsers = employeesOnly.filter(user =>
     user.name?.toLowerCase().includes(searchTerm.toLowerCase()) ||
     user.role?.toLowerCase().includes(searchTerm.toLowerCase())
   );
 
-  const totalEmployees = users.length;
-  const totalCDI = users.filter(u => u.contractType === 'CDI').length;
-  const pendingDocsCount = users.filter(u => {
+  // ⭐ MODIFICATION : statistiques calculées sur employeesOnly (sans les admins)
+  const totalEmployees = employeesOnly.length;
+  const totalCDI = employeesOnly.filter(u => u.contractType === 'CDI').length;
+  const pendingDocsCount = employeesOnly.filter(u => {
     const docs = u.onboardingDocs || {};
     return !docs.idCard || !docs.signedContract || !docs.rib;
   }).length;
@@ -1071,10 +1143,10 @@ function App() {
                     <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
                       <label style={{ fontSize: '12px', fontWeight: '600', color: darkMode ? '#cbd5e1' : '#475569' }}>Collaborateur *</label>
                       <select value={leaveEmployeeEmail} onChange={(e) => setLeaveEmployeeEmail(e.target.value)} style={{ padding: '10px', borderRadius: '8px', border: darkMode ? '1px solid #475569' : '1px solid #cbd5e1', background: darkMode ? '#0f172a' : '#fff', color: darkMode ? '#fff' : '#000', fontSize: '14px' }}>
-                        {users.map((u, i) => (
+                        {employeesOnly.map((u, i) => (
                           <option key={i} value={u.email}>{u.name} ({u.role})</option>
                         ))}
-                        {users.length === 0 && <option value={currentUser.email}>{currentUser.name}</option>}
+                        {employeesOnly.length === 0 && <option value={currentUser.email}>{currentUser.name}</option>}
                       </select>
                     </div>
 
@@ -1193,10 +1265,10 @@ function App() {
                     <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
                       <label style={{ fontSize: '12px', fontWeight: '600', color: darkMode ? '#cbd5e1' : '#475569' }}>Collaborateur *</label>
                       <select value={sanctionEmployeeEmail} onChange={(e) => setSanctionEmployeeEmail(e.target.value)} style={{ padding: '10px', borderRadius: '8px', border: darkMode ? '1px solid #475569' : '1px solid #cbd5e1', background: darkMode ? '#0f172a' : '#fff', color: darkMode ? '#fff' : '#000', fontSize: '14px' }}>
-                        {users.map((u, i) => (
+                        {employeesOnly.map((u, i) => (
                           <option key={i} value={u.email}>{u.name} ({u.role})</option>
                         ))}
-                        {users.length === 0 && <option value={currentUser.email}>{currentUser.name}</option>}
+                        {employeesOnly.length === 0 && <option value={currentUser.email}>{currentUser.name}</option>}
                       </select>
                     </div>
 
@@ -1529,6 +1601,32 @@ function App() {
               </div>
             </div>
 
+            <div style={{ background: darkMode ? '#0f172a' : '#f8fafc', padding: '20px', borderRadius: '18px', border: darkMode ? '1px solid #334155' : '1px solid #e2e8f0', display: 'flex', flexDirection: 'column', gap: '16px' }}>
+              <h4 style={{ margin: 0, fontSize: '13.5px', color: darkMode ? '#60a5fa' : '#1e3a8a', fontWeight: '700' }}>Photo & Pièce d'identité</h4>
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '18px' }}>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
+                  <label style={{ fontSize: '12.5px', fontWeight: '600', color: darkMode ? '#cbd5e1' : '#334155' }}>📸 Photo de profil</label>
+                  <input
+                    type="file"
+                    accept="image/*"
+                    onChange={(e) => setNewAvatarFile(e.target.files[0] || null)}
+                    style={{ fontSize: '13px', color: darkMode ? '#fff' : undefined }}
+                  />
+                  {newAvatarFile && <span style={{ fontSize: '12px', color: '#10b981' }}>✓ {newAvatarFile.name}</span>}
+                </div>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
+                  <label style={{ fontSize: '12.5px', fontWeight: '600', color: darkMode ? '#cbd5e1' : '#334155' }}>🪪 Pièce d'identité (CIN / Passeport)</label>
+                  <input
+                    type="file"
+                    accept="image/*,.pdf"
+                    onChange={(e) => setNewIdDocFile(e.target.files[0] || null)}
+                    style={{ fontSize: '13px', color: darkMode ? '#fff' : undefined }}
+                  />
+                  {newIdDocFile && <span style={{ fontSize: '12px', color: '#10b981' }}>✓ {newIdDocFile.name}</span>}
+                </div>
+              </div>
+            </div>
+
             <div style={{ background: darkMode ? '#0f172a' : '#f8fafc', padding: '24px', borderRadius: '18px', border: darkMode ? '1px solid #334155' : '1px solid #e2e8f0', display: 'flex', flexDirection: 'column', gap: '16px' }}>
               <div style={{ display: 'flex', alignItems: 'center' }}>
                 <h4 style={{ margin: 0, fontSize: '13.5px', color: darkMode ? '#60a5fa' : '#1e3a8a', fontWeight: '700' }}>Rémunération & Retenues Locales (Madagascar)</h4>
@@ -1563,7 +1661,9 @@ function App() {
 
             <div style={{ display: 'flex', gap: '14px', marginTop: '8px', justifyContent: 'flex-end', borderTop: darkMode ? '1px solid #334155' : '1px solid #f1f5f9', paddingTop: '20px' }}>
               <button type="button" onClick={handleCloseModal} style={{ padding: '12px 26px', background: darkMode ? '#334155' : '#f8fafc', color: darkMode ? '#cbd5e1' : '#64748b', border: darkMode ? '1px solid #475569' : '1px solid #e2e8f0', borderRadius: '12px', cursor: 'pointer' }}>Annuler</button>
-              <button type="submit" style={{ padding: '12px 36px', background: 'linear-gradient(135deg, #2563eb 0%, #1d4ed8 100%)', color: '#ffffff', border: 'none', borderRadius: '12px', cursor: 'pointer', fontWeight: '600' }}>Créer le profil</button>
+              <button type="submit" disabled={isSubmittingNewEmployee} style={{ padding: '12px 36px', background: 'linear-gradient(135deg, #2563eb 0%, #1d4ed8 100%)', color: '#ffffff', border: 'none', borderRadius: '12px', cursor: isSubmittingNewEmployee ? 'not-allowed' : 'pointer', fontWeight: '600', opacity: isSubmittingNewEmployee ? 0.7 : 1 }}>
+                {isSubmittingNewEmployee ? 'Création en cours...' : 'Créer le profil'}
+              </button>
             </div>
           </form>
         </div>
