@@ -1,0 +1,316 @@
+/* Importation de polices élégantes */
+@import url('https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,400..900;1,400..900&family=Plus+Jakarta+Sans:ital,wght@0,200..800;1,200..800&display=swap');
+
+:root {
+  --bg-color: #f6f3eb;       /* Beige/crème chaud de fond */
+  --card-bg: #fdfcf9;        /* Blanc cassé pour les cartes */
+  --text-main: #1d2b44;      /* Bleu marine très foncé */
+  --text-muted: #727a87;     /* Gris doux */
+  --border-color: #e5e0d3;   /* Ligne de séparation */
+  
+  --font-serif: 'Playfair Display', Georgia, serif;
+  --font-sans: 'Plus Jakarta Sans', sans-serif;
+}
+
+body {
+  margin: 0;
+  background-color: var(--bg-color);
+  color: var(--text-main);
+  font-family: var(--font-sans);
+  -webkit-font-smoothing: antialiased;
+}
+
+/* Conteneur principal */
+.dashboard-container {
+  display: flex;
+  min-height: 100vh;
+}
+
+/* ==========================================
+   1. BARRE LATÉRALE (SIDEBAR)
+   ========================================== */
+.sidebar {
+  width: 280px;
+  background-color: var(--bg-color);
+  border-right: 1px solid var(--border-color);
+  padding: 40px 24px;
+  display: flex;
+  flex-direction: column;
+  gap: 30px;
+}
+
+.logo-section {
+  display: flex;
+  flex-direction: column;
+}
+
+.logo-sub {
+  font-size: 10px;
+  letter-spacing: 0.15em;
+  color: var(--text-muted);
+  font-weight: 700;
+}
+
+.logo-title {
+  margin: 4px 0 0 0;
+  font-family: var(--font-serif);
+  font-size: 24px;
+  font-weight: 700;
+  color: var(--text-main);
+}
+
+/* Carte utilisateur */
+.profile-card {
+  background-color: var(--card-bg);
+  border: 1px solid var(--border-color);
+  border-radius: 6px;
+  padding: 24px 18px;
+  text-align: center;
+}
+
+.profile-avatar {
+  width: 48px;
+  height: 48px;
+  background-color: var(--text-main);
+  color: var(--card-bg);
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-weight: bold;
+  font-size: 16px;
+  margin: 0 auto 16px auto;
+}
+
+.profile-name {
+  font-family: var(--font-serif);
+  font-size: 18px;
+  margin: 0 0 6px 0;
+  font-weight: 700;
+}
+
+.profile-role {
+  font-size: 12px;
+  color: var(--text-muted);
+  margin: 0 0 16px 0;
+}
+
+.profile-divider {
+  height: 1px;
+  background-color: var(--border-color);
+  border: none;
+  border-bottom: 1px dashed var(--border-color);
+  margin-bottom: 12px;
+}
+
+.profile-meta {
+  font-size: 11px;
+  color: #a09989;
+  margin: 0;
+}
+
+/* Menus de navigation */
+.navigation {
+  display: flex;
+  flex-direction: column;
+  gap: 24px;
+}
+
+.nav-group {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.nav-group-title {
+  font-size: 10px;
+  font-weight: 700;
+  color: #a09989;
+  letter-spacing: 0.12em;
+  margin-bottom: 4px;
+}
+
+.nav-item {
+  background: none;
+  border: none;
+  text-align: left;
+  padding: 10px 14px;
+  font-size: 13.5px;
+  font-weight: 500;
+  color: #555e6b;
+  cursor: pointer;
+  border-radius: 4px;
+  transition: all 0.2s ease;
+}
+
+.nav-item:hover {
+  background-color: rgba(29, 43, 68, 0.05);
+  color: var(--text-main);
+}
+
+.nav-item.active {
+  background-color: var(--text-main);
+  color: #ffffff;
+  font-weight: 600;
+}
+
+
+/* ==========================================
+   2. CONTENU PRINCIPAL
+   ========================================== */
+.main-content {
+  flex-grow: 1;
+  padding: 50px 60px;
+  display: flex;
+  flex-direction: column;
+  gap: 40px;
+}
+
+.content-header {
+  border-bottom: 1px solid var(--border-color);
+  padding-bottom: 16px;
+}
+
+.page-title {
+  font-family: var(--font-serif);
+  font-size: 34px;
+  margin: 0 0 6px 0;
+  font-weight: 700;
+}
+
+.current-date {
+  font-size: 11px;
+  letter-spacing: 0.15em;
+  color: var(--text-muted);
+  font-weight: 700;
+}
+
+/* Grille statistiques (les 4 colonnes du haut) */
+.stats-grid {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  border: 1px solid var(--border-color);
+  border-radius: 6px;
+  background-color: var(--card-bg);
+  overflow: hidden;
+}
+
+.stat-card {
+  padding: 24px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.stat-card:not(:last-child) {
+  border-right: 1px solid var(--border-color);
+}
+
+.stat-label {
+  font-size: 10px;
+  font-weight: 700;
+  color: var(--text-muted);
+  letter-spacing: 0.1em;
+}
+
+.stat-value-container {
+  display: flex;
+  align-items: baseline;
+}
+
+.stat-value {
+  font-family: var(--font-serif);
+  font-size: 38px;
+  font-weight: 600;
+}
+
+.stat-unit {
+  font-family: var(--font-serif);
+  font-size: 18px;
+  margin-left: 4px;
+}
+
+/* Section activités */
+.activities-section {
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+}
+
+.section-title {
+  font-family: var(--font-serif);
+  font-size: 22px;
+  margin: 0;
+  padding-bottom: 12px;
+  border-bottom: 1px solid var(--border-color);
+}
+
+.activities-list {
+  display: flex;
+  flex-direction: column;
+}
+
+.activity-row {
+  display: flex;
+  align-items: center;
+  padding: 20px 0;
+  border-bottom: 1px solid rgba(229, 224, 211, 0.6);
+}
+
+.activity-status {
+  width: 140px;
+  flex-shrink: 0;
+}
+
+/* Styles pour les badges colorés */
+.badge {
+  display: inline-block;
+  padding: 6px 14px;
+  border-radius: 20px;
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-align: center;
+}
+
+.status-attente {
+  border: 1.5px solid #c0904a;
+  color: #a87935;
+  background-color: rgba(192, 144, 74, 0.05);
+}
+
+.status-renouveler {
+  border: 1.5px solid #2a527a;
+  color: #2a527a;
+  background-color: rgba(42, 82, 122, 0.05);
+}
+
+.status-approuve {
+  border: 1.5px solid #4a7c59;
+  color: #4a7c59;
+  background-color: rgba(74, 124, 89, 0.05);
+}
+
+.activity-details {
+  flex-grow: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.activity-title {
+  font-size: 15px;
+  font-weight: 600;
+  margin: 0;
+}
+
+.activity-id {
+  font-size: 12px;
+  color: var(--text-muted);
+}
+
+.activity-date {
+  font-size: 13.5px;
+  color: var(--text-muted);
+  font-weight: 500;
+}

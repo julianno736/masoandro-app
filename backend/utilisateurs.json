@@ -1,0 +1,361 @@
+[
+  {
+    "name": "JULIANnoelis",
+    "email": "juliannoelis02@gmail.com",
+    "password": "ADMIN1234",
+    "role": "Nouvel Employé — RH",
+    "number": "1742",
+    "since": "juillet 2026",
+    "initials": "J",
+    "avatarUrl": "",
+    "phone": "032 4444445",
+    "address": "MADA",
+    "contractType": "CDI",
+    "manager": "dddd",
+    "remuneration": {
+      "baseSalary": "200000 Ar",
+      "retentions": {
+        "irsa": " Ar",
+        "cnaps": " Ar",
+        "ostie": " Ar"
+      }
+    },
+    "onboardingDocs": {
+      "rib": true,
+      "idCard": true,
+      "signedContract": true
+    }
+  },
+  {
+    "name": "SOLO",
+    "email": "elisjul02@gmail.com",
+    "password": "change-moi-123",
+    "role": "dev",
+    "department": "Finance",
+    "number": "6830",
+    "since": "Juillet 2026",
+    "initials": "D",
+    "avatarUrl": "",
+    "phone": "",
+    "address": "",
+    "contractType": "CDI",
+    "manager": "",
+    "remuneration": {
+      "baseSalary": "3000000 Ar",
+      "retentions": {
+        "irsa": " Ar",
+        "cnaps": " Ar",
+        "ostie": " Ar"
+      }
+    },
+    "onboardingDocs": {},
+    "leavesHistory": [
+      {
+        "type": "Permission Exceptionnelle",
+        "start": "2026-07-24",
+        "end": "2026-07-28",
+        "duration": 4,
+        "dateRequested": "18/07/2026"
+      }
+    ]
+  },
+  {
+    "name": "DDDDD",
+    "email": "elisjul222222@gmail.com",
+    "password": "change-moi-123",
+    "role": "COMMERCIALE",
+    "department": "Marketing",
+    "number": "3967",
+    "since": "Juillet 2026",
+    "initials": "D"
+  },
+  {
+    "name": "Randria Faly",
+    "email": "xxxx@gmail.com",
+    "password": "change-moi-123",
+    "role": "ADMIN RESEAU",
+    "department": "Technique",
+    "number": "9922",
+    "since": "Juillet 2026",
+    "initials": "RF",
+    "leavesHistory": [
+      {
+        "type": "Arrêt Maladie / Médical",
+        "start": "2026-07-18",
+        "end": "2026-07-31",
+        "duration": 12,
+        "dateRequested": "18/07/2026"
+      }
+    ],
+    "remuneration": {},
+    "onboardingDocs": {}
+  },
+  {
+    "name": "RAJAONA HARIVELO",
+    "email": "GGGG@gmail.com",
+    "password": "change-moi-123",
+    "role": "RH",
+    "department": "Finance",
+    "number": "5432",
+    "since": "Juillet 2026",
+    "initials": "RH"
+  },
+  {
+    "name": "dddd",
+    "email": "ddddd@gmail.com",
+    "password": "change-moi-123",
+    "role": "ddddd",
+    "department": "Technique",
+    "number": "8372",
+    "since": "Juillet 2026",
+    "initials": "D"
+  },
+  {
+    "name": "Julianno",
+    "email": "elis@gmail.com",
+    "password": "change-moi-123",
+    "role": "DEV FULL STACK",
+    "department": "Technique",
+    "number": "4412",
+    "since": "Juillet 2026",
+    "initials": "J"
+  },
+  {
+    "name": "Mr Jul",
+    "email": "jul@gmail.com",
+    "password": "change-moi-123",
+    "role": "DEV",
+    "department": "Marketing",
+    "number": "2170",
+    "since": "Juillet 2026",
+    "initials": "MJ"
+  },
+  {
+    "name": "br",
+    "email": "kkkk@gmail.com",
+    "password": "change-moi-123",
+    "role": "dodo",
+    "department": "Finance",
+    "number": "009",
+    "since": "Juillet 2026",
+    "initials": "B",
+    "status": "ACTIF",
+    "phone": "+261 34 00 000 00",
+    "address": "BY PASS",
+    "manager": "Directeur Général",
+    "contractType": "CDD",
+    "remuneration": {
+      "baseSalary": "2000000 Ar",
+      "bonus": "0 Ar",
+      "benefits": "Aucun",
+      "history": [],
+      "retentions": {
+        "irsa": " Ar",
+        "cnaps": " Ar",
+        "ostie": " Ar"
+      }
+    },
+    "absences": {
+      "daysLeft": 30,
+      "taken": 0,
+      "history": []
+    },
+    "disciplinary": [],
+    "onboardingDocs": {
+      "idCard": false,
+      "residenceProof": false,
+      "signedContract": false,
+      "socialSecurity": false,
+      "rib": false,
+      "cvDiplomas": false,
+      "criminalRecord": false
+    },
+    "avatarUrl": ""
+  },
+  {
+    "name": "Julianno Elis",
+    "email": "elis12345@gmail.com",
+    "password": "change-moi-123",
+    "role": "DEV",
+    "department": "Marketing",
+    "number": "010",
+    "since": "Juillet 2026",
+    "initials": "JE",
+    "status": "ACTIF",
+    "phone": "034 1244433",
+    "address": "BY PASS",
+    "manager": "Directeur Général",
+    "contractType": "CDI",
+    "remuneration": {
+      "baseSalary": "3000000 Ar",
+      "bonus": "0 Ar",
+      "benefits": "Aucun",
+      "history": []
+    },
+    "absences": {
+      "daysLeft": 30,
+      "taken": 0,
+      "history": []
+    },
+    "disciplinary": [],
+    "onboardingDocs": {
+      "idCard": false,
+      "residenceProof": false,
+      "signedContract": false,
+      "socialSecurity": false,
+      "rib": false,
+      "cvDiplomas": false,
+      "criminalRecord": false
+    }
+  },
+  {
+    "name": "RRRR",
+    "email": "RRR@gmail.com",
+    "password": "change-moi-123",
+    "role": "BASE DE DONNE",
+    "department": "Marketing",
+    "number": "011",
+    "since": "Juillet 2026",
+    "initials": "R",
+    "status": "ACTIF",
+    "phone": "111111111111111",
+    "address": "MADA",
+    "manager": "Directeur Général",
+    "contractType": "Stage",
+    "remuneration": {
+      "baseSalary": "7000000 Ar",
+      "bonus": "0 Ar",
+      "benefits": "Aucun",
+      "history": []
+    },
+    "absences": {
+      "daysLeft": 30,
+      "taken": 0,
+      "history": []
+    },
+    "disciplinary": [],
+    "onboardingDocs": {
+      "idCard": false,
+      "residenceProof": false,
+      "signedContract": false,
+      "socialSecurity": false,
+      "rib": false,
+      "cvDiplomas": false,
+      "criminalRecord": false
+    }
+  },
+  {
+    "name": "Julianno",
+    "email": "elisjul1234@gmail.com",
+    "password": "change-moi-123",
+    "role": "BASE DE DONNE ",
+    "department": "Technique",
+    "number": "012",
+    "since": "Juillet 2026",
+    "initials": "J",
+    "status": "ACTIF",
+    "phone": "034 11 265 44",
+    "address": "BY PASS",
+    "manager": "Directeur Général",
+    "contractType": "Stage",
+    "remuneration": {
+      "baseSalary": "300000 Ar",
+      "bonus": "0 Ar",
+      "benefits": "Aucun",
+      "history": []
+    },
+    "absences": {
+      "daysLeft": 30,
+      "taken": 0,
+      "history": []
+    },
+    "disciplinary": [],
+    "onboardingDocs": {
+      "idCard": false,
+      "residenceProof": false,
+      "signedContract": false,
+      "socialSecurity": false,
+      "rib": false,
+      "cvDiplomas": false,
+      "criminalRecord": false
+    }
+  },
+  {
+    "name": "RAKOTONANDRASANA ",
+    "email": "gps@gmail.com",
+    "password": "change-moi-123",
+    "role": "GPS",
+    "department": "Technique",
+    "number": "013",
+    "since": "Juillet 2026",
+    "initials": "RJ",
+    "status": "ACTIF",
+    "phone": "034 4428659",
+    "address": "MAUSOLE",
+    "manager": "Directeur Général",
+    "contractType": "CDD",
+    "remuneration": {
+      "baseSalary": "4000 Ar",
+      "bonus": "0 Ar",
+      "benefits": "Aucun",
+      "history": [],
+      "retentions": {
+        "irsa": " Ar",
+        "cnaps": " Ar",
+        "ostie": " Ar"
+      }
+    },
+    "absences": {
+      "daysLeft": 30,
+      "taken": 0,
+      "history": []
+    },
+    "disciplinary": [],
+    "onboardingDocs": {
+      "idCard": true,
+      "residenceProof": false,
+      "signedContract": true,
+      "socialSecurity": false,
+      "rib": true,
+      "cvDiplomas": false,
+      "criminalRecord": false
+    },
+    "avatarUrl": ""
+  },
+  {
+    "name": "RASOA ",
+    "email": "rasoa@gmail.com",
+    "password": "change-moi-123",
+    "role": "DEV MOBILE",
+    "department": "Technique",
+    "number": "014",
+    "since": "Juillet 2026",
+    "initials": "R",
+    "status": "ACTIF",
+    "phone": "034 76 789 12",
+    "address": "ANKATSO",
+    "manager": "Directeur Général",
+    "contractType": "Stage",
+    "remuneration": {
+      "baseSalary": "3000000 Ar",
+      "bonus": "0 Ar",
+      "benefits": "Aucun",
+      "history": []
+    },
+    "absences": {
+      "daysLeft": 30,
+      "taken": 0,
+      "history": []
+    },
+    "disciplinary": [],
+    "onboardingDocs": {
+      "idCard": false,
+      "residenceProof": false,
+      "signedContract": false,
+      "socialSecurity": false,
+      "rib": false,
+      "cvDiplomas": false,
+      "criminalRecord": false
+    }
+  }
+]

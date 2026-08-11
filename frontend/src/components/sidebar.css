@@ -1,0 +1,136 @@
+/* src/components/Sidebar.css */
+
+.sidebar {
+  width: 280px;
+  background-color: var(--sidebar-bg);
+  border-right: 1px solid rgba(255,255,255,0.05);
+  padding: 40px 24px;
+  display: flex;
+  flex-direction: column;
+  gap: 30px;
+  flex-shrink: 0;
+}
+
+.logo-sub {
+  font-size: 10px;
+  letter-spacing: 0.15em;
+  color: var(--text-muted-dark);
+  font-weight: 700;
+}
+
+.logo-title {
+  margin: 4px 0 0 0;
+  font-size: 26px;
+  font-weight: 800;
+  color: var(--text-on-dark);
+}
+
+/* Carte utilisateur stylée */
+.profile-card {
+  background-color: var(--sidebar-hover);
+  border: 1px solid rgba(255,255,255,0.05);
+  border-radius: var(--radius-md);
+  padding: 24px 18px;
+  text-align: center;
+  transition: transform var(--transition-slow);
+}
+
+.profile-card:hover {
+  transform: translateY(-3px);
+}
+
+.profile-avatar {
+  position: relative;
+  width: 52px;
+  height: 52px;
+  background-color: var(--primary);
+  color: var(--text-on-dark);
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-weight: 700;
+  font-size: 18px;
+  margin: 0 auto 16px auto;
+}
+
+.status-indicator {
+  position: absolute;
+  bottom: 0;
+  right: 0;
+  width: 14px;
+  height: 14px;
+  background-color: var(--status-color);
+  border: 2px solid var(--sidebar-hover);
+  border-radius: 50%;
+}
+
+.profile-name {
+  font-size: 16px;
+  margin: 0 0 6px 0;
+  color: var(--text-on-dark);
+}
+
+.profile-role {
+  font-size: 12px;
+  color: var(--text-muted-dark);
+  margin: 0 0 16px 0;
+}
+
+.profile-divider {
+  height: 1px;
+  background: linear-gradient(to right, transparent, rgba(255,255,255,0.1), transparent);
+  margin-bottom: 12px;
+}
+
+.profile-meta {
+  font-size: 11px;
+  color: var(--text-muted-dark);
+  margin: 0;
+}
+
+/* Navigation */
+.navigation {
+  display: flex;
+  flex-direction: column;
+  gap: 24px;
+}
+
+.nav-group {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.nav-group-title {
+  font-size: 10px;
+  font-weight: 700;
+  color: var(--text-muted-dark);
+  letter-spacing: 0.12em;
+  margin-bottom: 4px;
+}
+
+.nav-item {
+  background: none;
+  border: none;
+  text-align: left;
+  padding: 10px 14px;
+  font-size: 13.5px;
+  font-weight: 500;
+  color: #b1bccd;
+  border-radius: 4px;
+  transition: all var(--transition-fast);
+}
+
+.nav-item:hover {
+  background-color: rgba(255,255,255,0.03);
+  color: var(--text-on-dark);
+  padding-left: 18px;
+}
+
+.nav-item.active {
+  background-color: var(--primary);
+  color: #ffffff;
+  font-weight: 600;
+  box-shadow: 0 4px 12px rgba(37, 99, 235, 0.2);
+}
