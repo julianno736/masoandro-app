@@ -1,52 +1,28 @@
 [
   {
-    "name": "jukli",
-    "email": "jul@gmail.com",
-    "role": "dev",
-    "department": "Technique",
-    "contractType": "Freelence",
+    "id": 1786536587049,
+    "name": "Administrateur",
+    "email": "admin@masoandro.com",
+    "password": "ChangeMoi123!",
+    "role": "Administrateur Système",
+    "department": "Direction",
     "accountType": "admin",
-    "avatarUrl": "",
-    "phone": "iii",
-    "address": "iiii",
-    "manager": "Directeur Général",
+    "contractType": "CDI",
+    "phone": "Non renseigné",
+    "address": "Non renseignée",
+    "manager": "—",
     "remuneration": {
-      "baseSalary": "30000000 Ar",
+      "baseSalary": "0 Ar",
       "retentions": {
-        "irsa": "5930000 Ar",
-        "cnaps": "300000 Ar",
-        "ostie": "300000 Ar"
-      }
-    },
-    "onboardingDocs": {
-      "idCard": false,
-      "signedContract": false,
-      "rib": false
-    }
-  },
-  {
-    "name": "Jul",
-    "email": "elisjul02@gmail.com",
-    "role": "Admin REseau",
-    "department": "Technique",
-    "contractType": "Stage",
-    "accountType": "employee",
-    "avatarUrl": "http://127.0.0.1:5001/uploads/1786449957146-531376841.jpg",
-    "phone": "034555555",
-    "address": "Tana",
-    "manager": "Directeur Général",
-    "remuneration": {
-      "baseSalary": "9900000 Ar",
-      "retentions": {
-        "irsa": "1910000 Ar",
-        "cnaps": "99000 Ar",
-        "ostie": "99000 Ar"
+        "irsa": "0 Ar",
+        "cnaps": "0 Ar",
+        "ostie": "0 Ar"
       }
     },
     "onboardingDocs": {
       "idCard": true,
-      "signedContract": false,
-      "rib": false
+      "signedContract": true,
+      "rib": true
     }
   }
 ]

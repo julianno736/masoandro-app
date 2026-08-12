@@ -29,6 +29,17 @@ const authenticate = (req, res, next) => {
   next();
 };
 
+// Middleware d'autorisation : vérifie que l'utilisateur connecté est admin.
+// À utiliser APRÈS authenticate sur les routes réservées aux administrateurs.
+const requireAdmin = (req, res, next) => {
+  const users = readData();
+  const user = users.find(u => u.email?.toLowerCase() === req.userEmail?.toLowerCase());
+  if (!user || user.accountType !== 'admin') {
+    return res.status(403).json({ message: "Action réservée aux administrateurs." });
+  }
+  next();
+};
+
 // Middlewares
 app.use(cors());
 app.use(express.json());
@@ -267,9 +278,16 @@ app.post('/api/users/add', authenticate, (req, res) => {
     if (!newCollaborator.accountType) {
       newCollaborator.accountType = 'employee';
     }
+    // Génère un mot de passe temporaire : sans ça, le compte créé via ce formulaire
+    // n'a aucun mot de passe et ne peut jamais se connecter.
+    const tempPassword = crypto.randomBytes(4).toString('hex');
+    newCollaborator.password = tempPassword;
+
     users.push(newCollaborator);
     writeData(users);
-    res.status(201).json({ message: "Employé enregistré.", user: newCollaborator });
+
+    const { password: _, ...userWithoutPassword } = newCollaborator;
+    res.status(201).json({ message: "Employé enregistré.", user: userWithoutPassword, tempPassword });
   } catch (err) {
     res.status(500).json({ message: "Erreur serveur." });
   }
@@ -442,7 +460,8 @@ app.post('/api/leaves', authenticate, (req, res) => {
   }
 });
 
-app.put('/api/leaves/:id', authenticate, (req, res) => {
+// Modification du statut d'un congé (approuver / refuser) : réservé aux admins
+app.put('/api/leaves/:id', authenticate, requireAdmin, (req, res) => {
   try {
     const { id } = req.params;
     let leaves = readLeaves();
@@ -457,6 +476,25 @@ app.put('/api/leaves/:id', authenticate, (req, res) => {
     res.json({ message: "Statut du congé mis à jour avec succès.", leave: leaves[index] });
   } catch (err) {
     res.status(500).json({ message: "Erreur lors de la mise à jour du congé." });
+  }
+});
+
+// Suppression d'une demande de congé : réservée aux admins
+app.delete('/api/leaves/:id', authenticate, requireAdmin, (req, res) => {
+  try {
+    const { id } = req.params;
+    let leaves = readLeaves();
+    const initialLength = leaves.length;
+    const filtered = leaves.filter(l => String(l.id) !== String(id));
+
+    if (filtered.length === initialLength) {
+      return res.status(404).json({ message: "Demande de congé introuvable." });
+    }
+
+    writeLeaves(filtered);
+    res.json({ message: "Demande de congé supprimée avec succès." });
+  } catch (err) {
+    res.status(500).json({ message: "Erreur lors de la suppression du congé." });
   }
 });
 

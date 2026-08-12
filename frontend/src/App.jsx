@@ -722,6 +722,26 @@ function App() {
     }
   };
 
+  const handleDeleteLeave = async (id) => {
+    if (!window.confirm("Voulez-vous vraiment supprimer cette demande de congé ?")) return;
+    try {
+      const response = await fetch(`${API_URL}/api/leaves/${id}`, {
+        method: 'DELETE',
+        headers: authHeaders()
+      });
+
+      if (response.ok) {
+        fetchLeaveRequests();
+        alert("🗑️ Demande de congé supprimée.");
+      } else {
+        alert("Erreur lors de la suppression de la demande de congé.");
+      }
+    } catch (err) {
+      console.error("Erreur réseau suppression congé :", err);
+      alert("Impossible de contacter le serveur.");
+    }
+  };
+
   // --- ACTIONS POUR LES SANCTIONS ---
   const handleAddSanctionSubmit = async (e) => {
     e.preventDefault();
@@ -1232,10 +1252,15 @@ function App() {
                             </div>
                           </div>
 
-                          {req.status === 'En attente' && isAdmin && (
+                          {isAdmin && (
                             <div style={{ display: 'flex', gap: '8px', justifyContent: 'flex-end' }}>
-                              <button onClick={() => handleUpdateLeaveStatus(req.id, 'Refusé')} style={{ padding: '6px 12px', background: darkMode ? '#1e293b' : '#fff', color: '#c53030', border: '1px solid #feb2b2', borderRadius: '6px', fontSize: '12px', fontWeight: '600', cursor: 'pointer' }}>❌ Refuser</button>
-                              <button onClick={() => handleUpdateLeaveStatus(req.id, 'Approuvé')} style={{ padding: '6px 12px', background: '#10b981', color: '#fff', border: 'none', borderRadius: '6px', fontSize: '12px', fontWeight: '600', cursor: 'pointer' }}>✅ Approuver</button>
+                              {req.status === 'En attente' && (
+                                <>
+                                  <button onClick={() => handleUpdateLeaveStatus(req.id, 'Refusé')} style={{ padding: '6px 12px', background: darkMode ? '#1e293b' : '#fff', color: '#c53030', border: '1px solid #feb2b2', borderRadius: '6px', fontSize: '12px', fontWeight: '600', cursor: 'pointer' }}>❌ Refuser</button>
+                                  <button onClick={() => handleUpdateLeaveStatus(req.id, 'Approuvé')} style={{ padding: '6px 12px', background: '#10b981', color: '#fff', border: 'none', borderRadius: '6px', fontSize: '12px', fontWeight: '600', cursor: 'pointer' }}>✅ Approuver</button>
+                                </>
+                              )}
+                              <button onClick={() => handleDeleteLeave(req.id)} style={{ padding: '6px 12px', background: darkMode ? '#1e293b' : '#fff', color: '#c53030', border: '1px solid #feb2b2', borderRadius: '6px', fontSize: '12px', fontWeight: '600', cursor: 'pointer' }}>🗑️ Supprimer</button>
                             </div>
                           )}
                         </div>
