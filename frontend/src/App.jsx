@@ -1,6 +1,7 @@
 // src/App.jsx
 import React, { useState, useEffect } from 'react';
 import './App.css';
+import logo from './assets/LogoM.jpg';
 
 // URL de votre serveur Node/Express
 const API_URL = 'http://127.0.0.1:5001';
@@ -87,6 +88,11 @@ function App() {
 
   const [employeeAttachments, setEmployeeAttachments] = useState([]);
   const [uploadingAttachment, setUploadingAttachment] = useState(false);
+
+  // --- ÉTATS COMPTES D'AUTO-INSCRIPTION EN ATTENTE (accounts.json, admin uniquement) ---
+  const [pendingAccounts, setPendingAccounts] = useState([]);
+  const [linkingAccountId, setLinkingAccountId] = useState(null);
+  const [linkTargetEmail, setLinkTargetEmail] = useState('');
 
   const isAdmin = currentUser?.accountType === 'admin';
 
@@ -217,12 +223,26 @@ function App() {
     }
   };
 
+  // 1E. CHARGER LES COMPTES EN ATTENTE (auto-inscription, admin uniquement)
+  const fetchAccounts = async () => {
+    try {
+      const response = await fetch(`${API_URL}/api/accounts`, { headers: authHeaders() });
+      if (response.ok) {
+        const data = await response.json();
+        if (Array.isArray(data)) setPendingAccounts(data.filter(a => a.status === 'pending'));
+      }
+    } catch (err) {
+      console.error("Erreur lors de la récupération des comptes en attente :", err);
+    }
+  };
+
   // On ne charge les données protégées qu'une fois la session restaurée ET l'utilisateur connecté
   useEffect(() => {
     if (authChecked && currentUser) {
       fetchUsers();
       fetchLeaveRequests();
       fetchSanctions();
+      if (currentUser.accountType === 'admin') fetchAccounts();
     }
   }, [authChecked, currentUser]);
 
@@ -300,7 +320,7 @@ function App() {
       const data = await response.json();
 
       if (response.ok) {
-        setRegisterSuccess("✨ Compte créé avec succès ! Vous pouvez vous connecter.");
+        setRegisterSuccess("✨ Compte créé avec succès ! Un administrateur doit valider votre compte avant votre première connexion.");
         setTimeout(() => {
           setIsRegistering(false);
           setRegisterSuccess('');
@@ -633,6 +653,75 @@ function App() {
     }
   };
 
+  // 5B. LIER UN COMPTE EN ATTENTE À UNE FICHE EMPLOYÉ EXISTANTE
+  // (cas où un employé possède déjà une fiche et s'auto-inscrit avec un 2e compte)
+  const handleLinkAccount = async (accountId) => {
+    if (!linkTargetEmail) {
+      alert("Veuillez choisir la fiche employé à lier.");
+      return;
+    }
+    try {
+      const response = await fetch(`${API_URL}/api/accounts/${accountId}/link`, {
+        method: 'PUT',
+        headers: authHeaders(),
+        body: JSON.stringify({ employeeEmail: linkTargetEmail })
+      });
+      if (response.ok) {
+        alert("🔗 Compte lié à la fiche employé et activé.");
+        setLinkingAccountId(null);
+        setLinkTargetEmail('');
+        fetchAccounts();
+      } else {
+        const errorData = await response.json().catch(() => ({}));
+        alert(`Erreur : ${errorData.message || "impossible de lier le compte."}`);
+      }
+    } catch (err) {
+      console.error("Erreur liaison compte :", err);
+      alert("Impossible de contacter le serveur.");
+    }
+  };
+
+  // 5C. CRÉER UNE NOUVELLE FICHE EMPLOYÉ À PARTIR D'UN COMPTE EN ATTENTE
+  const handleCreateEmployeeFromAccount = async (accountId, accountName) => {
+    if (!window.confirm(`Créer une nouvelle fiche employé pour ${accountName} ?`)) return;
+    try {
+      const response = await fetch(`${API_URL}/api/accounts/${accountId}/create-employee`, {
+        method: 'PUT',
+        headers: authHeaders()
+      });
+      if (response.ok) {
+        alert("✅ Fiche employé créée et compte activé.");
+        fetchAccounts();
+        fetchUsers();
+      } else {
+        const errorData = await response.json().catch(() => ({}));
+        alert(`Erreur : ${errorData.message || "impossible de créer la fiche."}`);
+      }
+    } catch (err) {
+      console.error("Erreur création fiche depuis compte :", err);
+      alert("Impossible de contacter le serveur.");
+    }
+  };
+
+  // 5D. REJETER (SUPPRIMER) UN COMPTE EN ATTENTE
+  const handleRejectAccount = async (accountId, accountName) => {
+    if (!window.confirm(`Rejeter et supprimer le compte de ${accountName} ?`)) return;
+    try {
+      const response = await fetch(`${API_URL}/api/accounts/${accountId}`, {
+        method: 'DELETE',
+        headers: authHeaders()
+      });
+      if (response.ok) {
+        fetchAccounts();
+      } else {
+        alert("Erreur lors du rejet du compte.");
+      }
+    } catch (err) {
+      console.error("Erreur rejet compte :", err);
+      alert("Impossible de contacter le serveur.");
+    }
+  };
+
   // 6. METTRE À JOUR LES DOCUMENTS D'ONBOARDING
   const handleDocChange = async (docKey) => {
     if (!selectedUser) return;
@@ -814,6 +903,8 @@ function App() {
   // n'est pas un employé et ne doit pas apparaître dans ces listes,
   // qu'il vienne du compte automatique (.env) ou d'un admin créé manuellement
   // via le formulaire "Ajouter nouveau employé".
+  // ⭐ data.json ne contient désormais que de vraies fiches employés : les comptes
+  // d'auto-inscription (accounts.json) n'y sont jamais ajoutés automatiquement.
   const employeesOnly = users.filter(u => u.accountType !== 'admin');
 
   const filteredUsers = employeesOnly.filter(user =>
@@ -850,8 +941,7 @@ function App() {
         <div style={{ background: darkMode ? '#1e293b' : '#ffffff', color: darkMode ? '#f8fafc' : '#1e293b', padding: '40px', borderRadius: '24px', width: '100%', maxWidth: '420px', boxShadow: '0 20px 25px -5px rgba(0, 0, 0, 0.3)', border: darkMode ? '1px solid #334155' : '1px solid #e2e8f0' }}>
 
           <div style={{ textAlign: 'center', marginBottom: '30px' }}>
-            <span style={{ fontSize: '40px', filter: 'drop-shadow(0 0 8px rgba(251, 191, 36, 0.5))' }}>☀️</span>
-            <h2 style={{ margin: '10px 0 5px 0', fontSize: '26px', color: darkMode ? '#f8fafc' : '#1e293b', fontWeight: '800' }}>{companyName}</h2>
+            <img src={logo} alt={companyName} style={{ height: '180px', width: 'auto', filter: 'drop-shadow(0 0 8px rgba(251, 191, 36, 0.3))' }} />
             <p style={{ margin: 0, color: darkMode ? '#94a3b8' : '#64748b', fontSize: '14px' }}>{isRegistering ? 'Création de Compte RH' : 'Portail de Connexion RH'}</p>
           </div>
 
@@ -978,7 +1068,9 @@ function App() {
       {/* SIDEBAR DE GAUCHE */}
       <aside className="classic-sidebar" style={{ background: darkMode ? '#1e293b' : undefined, borderRight: darkMode ? '1px solid #334155' : undefined }}>
         <div className="sidebar-brand">
-          <span className="brand-logo" style={{ color: '#fbbf24', filter: 'drop-shadow(0 0 5px rgba(251, 191, 36, 0.4))' }}>☀️ {companyName}</span>
+          <span className="brand-logo" style={{ display: 'flex', alignItems: 'center' }}>
+            <img src={logo} alt={companyName} style={{ height: '64px', width: 'auto', borderRadius: '6px' }} />
+          </span>
         </div>
         <nav className="sidebar-nav">
           <button className={`nav-item ${currentMenu === 'dashboard' ? 'active' : ''}`} onClick={() => setCurrentMenu('dashboard')}>📊 Tableau de Bord</button>
@@ -1140,6 +1232,58 @@ function App() {
                   ))
                 )}
               </div>
+
+              {/* Comptes d'auto-inscription en attente (accounts.json) — visibles uniquement par l'admin.
+                  Ce ne sont PAS des fiches employés : l'admin choisit de les lier à une fiche
+                  existante (un employé peut avoir plusieurs comptes) ou d'en créer une nouvelle. */}
+              {isAdmin && pendingAccounts.length > 0 && (
+                <div style={{ marginTop: '28px', background: darkMode ? '#1e293b' : '#fffbeb', border: darkMode ? '1px solid #78350f' : '1px solid #fde68a', borderRadius: '14px', padding: '18px 20px' }}>
+                  <h3 style={{ margin: '0 0 12px 0', fontSize: '15px', color: darkMode ? '#fcd34d' : '#92400e', display: 'flex', alignItems: 'center', gap: '8px' }}>
+                    ⏳ Comptes en attente de validation ({pendingAccounts.length})
+                  </h3>
+                  <p style={{ margin: '0 0 14px 0', fontSize: '12.5px', color: darkMode ? '#94a3b8' : '#78716c' }}>
+                    Ce sont des comptes de connexion, pas des fiches employés. Liez-les à une fiche existante ou créez-en une nouvelle.
+                  </p>
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                    {pendingAccounts.map((account) => (
+                      <div key={account.id} style={{ padding: '10px 14px', borderRadius: '10px', background: darkMode ? '#0f172a' : '#ffffff', border: darkMode ? '1px solid #334155' : '1px solid #fde68a' }}>
+                        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: '10px' }}>
+                          <div>
+                            <div style={{ fontWeight: '600', color: darkMode ? '#f8fafc' : '#1e293b', fontSize: '14px' }}>{account.name}</div>
+                            <div style={{ fontSize: '12.5px', color: darkMode ? '#94a3b8' : '#64748b' }}>{account.email}</div>
+                          </div>
+                          <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
+                            <button
+                              onClick={() => setLinkingAccountId(linkingAccountId === account.id ? null : account.id)}
+                              style={{ background: darkMode ? '#1e3a8a' : '#eff6ff', color: darkMode ? '#93c5fd' : '#1e40af', border: darkMode ? '1px solid #1e3a8a' : '1px solid #bfdbfe', padding: '7px 14px', borderRadius: '6px', fontSize: '12.5px', fontWeight: '600', cursor: 'pointer' }}
+                            >
+                              🔗 Lier à un employé
+                            </button>
+                            <button onClick={() => handleCreateEmployeeFromAccount(account.id, account.name)} style={{ background: '#059669', color: '#fff', border: 'none', padding: '7px 14px', borderRadius: '6px', fontSize: '12.5px', fontWeight: '600', cursor: 'pointer' }}>➕ Créer une fiche</button>
+                            <button onClick={() => handleRejectAccount(account.id, account.name)} style={{ background: darkMode ? '#7f1d1d' : '#fff5f5', color: darkMode ? '#fca5a5' : '#c53030', border: darkMode ? '1px solid #991b1b' : '1px solid #feb2b2', padding: '7px 14px', borderRadius: '6px', fontSize: '12.5px', fontWeight: '600', cursor: 'pointer' }}>🗑️ Rejeter</button>
+                          </div>
+                        </div>
+
+                        {linkingAccountId === account.id && (
+                          <div style={{ marginTop: '10px', display: 'flex', gap: '8px', alignItems: 'center', paddingTop: '10px', borderTop: darkMode ? '1px dashed #334155' : '1px dashed #e2e8f0' }}>
+                            <select
+                              value={linkTargetEmail}
+                              onChange={(e) => setLinkTargetEmail(e.target.value)}
+                              style={{ flex: 1, padding: '8px', borderRadius: '8px', border: darkMode ? '1px solid #475569' : '1px solid #cbd5e1', background: darkMode ? '#1e293b' : '#fff', color: darkMode ? '#fff' : '#000', fontSize: '13px' }}
+                            >
+                              <option value="">— Choisir une fiche employé —</option>
+                              {employeesOnly.map((emp, i) => (
+                                <option key={i} value={emp.email}>{emp.name} ({emp.email})</option>
+                              ))}
+                            </select>
+                            <button onClick={() => handleLinkAccount(account.id)} style={{ background: '#2563eb', color: '#fff', border: 'none', padding: '8px 14px', borderRadius: '6px', fontSize: '12.5px', fontWeight: '600', cursor: 'pointer' }}>Confirmer</button>
+                          </div>
+                        )}
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
             </div>
           )}
 
@@ -1427,7 +1571,10 @@ function App() {
               </div>
               <div className="drawer-titles">
                 {isEditing ? <input type="text" value={editForm.name} onChange={(e) => setEditForm({...editForm, name: e.target.value})} className="drawer-edit-input" style={{ background: darkMode ? '#0f172a' : undefined, color: darkMode ? '#fff' : undefined }} /> : <h2 style={{ color: darkMode ? '#f8fafc' : undefined }}>{selectedUser.name}</h2>}
-                <p style={{ color: darkMode ? '#94a3b8' : undefined }}>{selectedUser.role} — <strong>{selectedUser.department}</strong> {selectedUser.accountType === 'admin' && <span style={{ marginLeft: '6px', fontSize: '11px', background: '#dc2626', color: '#fff', padding: '2px 8px', borderRadius: '10px', fontWeight: '700' }}>ADMIN</span>}</p>
+                <p style={{ color: darkMode ? '#94a3b8' : undefined }}>
+                  {selectedUser.role} — <strong>{selectedUser.department}</strong>
+                  {selectedUser.accountType === 'admin' && <span style={{ marginLeft: '6px', fontSize: '11px', background: '#dc2626', color: '#fff', padding: '2px 8px', borderRadius: '10px', fontWeight: '700' }}>ADMIN</span>}
+                </p>
               </div>
               <button className="drawer-close" onClick={() => { setSelectedUser(null); setIsEditing(false); }} style={{ color: darkMode ? '#fff' : undefined }}>&times;</button>
             </div>

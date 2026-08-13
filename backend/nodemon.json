@@ -1,0 +1,10 @@
+{
+  "ignore": [
+    "data.json",
+    "leaves.json",
+    "sanctions.json",
+    "attachments.json",
+    "uploads/*",
+    "*.tmp"
+  ]
+}

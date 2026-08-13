@@ -13,6 +13,7 @@ const DATA_FILE = path.join(__dirname, 'data.json');
 const LEAVES_FILE = path.join(__dirname, 'leaves.json');
 const SANCTIONS_FILE = path.join(__dirname, 'sanctions.json');
 const ATTACHMENTS_FILE = path.join(__dirname, 'attachments.json');
+const ACCOUNTS_FILE = path.join(__dirname, 'accounts.json');
 
 // Sessions actives : token -> email. Stockage en mémoire (réinitialisé au redémarrage du serveur).
 const sessions = new Map();
@@ -61,6 +62,19 @@ const storage = multer.diskStorage({
 });
 const upload = multer({ storage: storage });
 
+// ==========================================
+// ÉCRITURE ATOMIQUE (anti-corruption des fichiers JSON)
+// ==========================================
+// On écrit d'abord dans un fichier temporaire, puis on le renomme.
+// Le rename est atomique sur la quasi-totalité des OS : même si le process
+// est tué en plein milieu (ex: redémarrage nodemon), soit l'ancien fichier
+// reste intact, soit le nouveau est complet. Jamais de fichier à moitié écrit.
+const writeJsonAtomic = (filePath, data) => {
+  const tmpPath = `${filePath}.tmp`;
+  fs.writeFileSync(tmpPath, JSON.stringify(data, null, 2));
+  fs.renameSync(tmpPath, filePath);
+};
+
 // Fonctions utilitaires de lecture / écriture (Utilisateurs)
 const readData = () => {
   try {
@@ -75,9 +89,7 @@ const readData = () => {
   }
 };
 
-const writeData = (data) => {
-  fs.writeFileSync(DATA_FILE, JSON.stringify(data, null, 2));
-};
+const writeData = (data) => writeJsonAtomic(DATA_FILE, data);
 
 // Fonctions utilitaires de lecture / écriture (Congés)
 const readLeaves = () => {
@@ -93,9 +105,7 @@ const readLeaves = () => {
   }
 };
 
-const writeLeaves = (data) => {
-  fs.writeFileSync(LEAVES_FILE, JSON.stringify(data, null, 2));
-};
+const writeLeaves = (data) => writeJsonAtomic(LEAVES_FILE, data);
 
 // Fonctions utilitaires de lecture / écriture (Sanctions)
 const readSanctions = () => {
@@ -111,9 +121,7 @@ const readSanctions = () => {
   }
 };
 
-const writeSanctions = (data) => {
-  fs.writeFileSync(SANCTIONS_FILE, JSON.stringify(data, null, 2));
-};
+const writeSanctions = (data) => writeJsonAtomic(SANCTIONS_FILE, data);
 
 // Fonctions utilitaires de lecture / écriture (Pièces jointes)
 const readAttachments = () => {
@@ -129,9 +137,26 @@ const readAttachments = () => {
   }
 };
 
-const writeAttachments = (data) => {
-  fs.writeFileSync(ATTACHMENTS_FILE, JSON.stringify(data, null, 2));
+const writeAttachments = (data) => writeJsonAtomic(ATTACHMENTS_FILE, data);
+
+// Fonctions utilitaires de lecture / écriture (Comptes d'auto-inscription)
+// ⭐ Un "compte" (identifiants de connexion) est distinct d'une "fiche employé" (data.json).
+// Un compte peut être lié à une fiche employé (linkedEmployeeEmail), ou rester autonome.
+// Un même employé peut donc avoir plusieurs comptes liés à sa fiche.
+const readAccounts = () => {
+  try {
+    if (!fs.existsSync(ACCOUNTS_FILE)) {
+      fs.writeFileSync(ACCOUNTS_FILE, JSON.stringify([], null, 2));
+      return [];
+    }
+    return JSON.parse(fs.readFileSync(ACCOUNTS_FILE, 'utf-8') || '[]');
+  } catch (error) {
+    console.error("Erreur lecture accounts.json:", error);
+    return [];
+  }
 };
+
+const writeAccounts = (data) => writeJsonAtomic(ACCOUNTS_FILE, data);
 
 // Quota annuel de congés payés (en jours)
 const TOTAL_LEAVE_QUOTA = 30;
@@ -155,6 +180,7 @@ const seedAdminAccount = () => {
       role: 'Administrateur Système',
       department: 'Direction',
       accountType: 'admin',
+      status: 'active',
       contractType: 'CDI',
       phone: 'Non renseigné',
       address: 'Non renseignée',
@@ -180,42 +206,36 @@ const seedAdminAccount = () => {
 
 app.post('/api/signup', (req, res) => {
   try {
-    const users = readData();
-    const { name, email, password, role, department } = req.body;
+    const accounts = readAccounts();
+    const { name, email, password } = req.body;
 
     if (!email || !password) {
       return res.status(400).json({ message: "L'e-mail et le mot de passe sont obligatoires." });
     }
 
-    const exists = users.find(u => u.email?.toLowerCase() === email.toLowerCase());
+    const exists = accounts.find(a => a.email?.toLowerCase() === email.toLowerCase());
     if (exists) {
-      return res.status(400).json({ message: "Cet e-mail est déjà utilisé." });
+      return res.status(400).json({ message: "Un compte existe déjà avec cet e-mail." });
     }
 
-    const newUser = {
+    // ⭐ Un compte créé via l'auto-inscription N'EST PAS une fiche employé.
+    // Il est stocké séparément (accounts.json), en attente qu'un admin le lie
+    // à une fiche employé existante (cas d'un employé avec plusieurs comptes)
+    // ou en crée une nouvelle à partir de ce compte.
+    const newAccount = {
       id: Date.now(),
       name: name || 'Utilisateur',
       email,
       password,
-      role: role || 'Collaborateur',
-      department: department || 'Général',
-      accountType: 'employee',
-      contractType: 'CDI',
-      phone: 'Non renseigné',
-      address: 'Non renseignée',
-      manager: 'Directeur Général',
-      remuneration: {
-        baseSalary: '0 Ar',
-        retentions: { irsa: '0 Ar', cnaps: '0 Ar', ostie: '0 Ar' }
-      },
-      onboardingDocs: { idCard: false, signedContract: false, rib: false }
+      status: 'pending', // pending | active
+      linkedEmployeeEmail: null
     };
 
-    users.push(newUser);
-    writeData(users);
+    accounts.push(newAccount);
+    writeAccounts(accounts);
 
-    const { password: _, ...userWithoutPassword } = newUser;
-    res.status(201).json({ message: "Compte créé avec succès !", user: userWithoutPassword });
+    const { password: _, ...accountWithoutPassword } = newAccount;
+    res.status(201).json({ message: "Compte créé avec succès ! Il doit être validé par un administrateur avant la première connexion.", account: accountWithoutPassword });
   } catch (err) {
     console.error("Erreur /api/signup :", err);
     res.status(500).json({ message: "Erreur lors de la création du compte." });
@@ -224,10 +244,57 @@ app.post('/api/signup', (req, res) => {
 
 app.post('/api/login', (req, res) => {
   try {
-    const users = readData();
     const { email, password } = req.body;
+    const emailLower = email?.toLowerCase();
 
-    const user = users.find(u => u.email?.toLowerCase() === email?.toLowerCase() && u.password === password);
+    // 1) On regarde d'abord dans les comptes d'auto-inscription (accounts.json)
+    const accounts = readAccounts();
+    const account = accounts.find(a => a.email?.toLowerCase() === emailLower && a.password === password);
+
+    if (account) {
+      if (account.status === 'pending') {
+        return res.status(403).json({ message: "Votre compte est en attente de validation par un administrateur." });
+      }
+
+      const users = readData();
+      let profile = null;
+
+      // Si ce compte est lié à une fiche employé, on se connecte avec le profil de cette fiche.
+      if (account.linkedEmployeeEmail) {
+        const emp = users.find(u => u.email?.toLowerCase() === account.linkedEmployeeEmail.toLowerCase());
+        if (emp) profile = { ...emp, accountId: account.id };
+      }
+
+      // Sinon (compte actif mais pas encore lié à une fiche employé) : profil minimal.
+      if (!profile) {
+        profile = {
+          id: account.id,
+          accountId: account.id,
+          name: account.name,
+          email: account.email,
+          role: 'Collaborateur',
+          department: 'Général',
+          accountType: 'employee',
+          contractType: '—',
+          phone: 'Non renseigné',
+          address: 'Non renseignée',
+          manager: '—',
+          remuneration: { baseSalary: '0 Ar', retentions: { irsa: '0 Ar', cnaps: '0 Ar', ostie: '0 Ar' } },
+          onboardingDocs: { idCard: false, signedContract: false, rib: false },
+          unlinked: true
+        };
+      }
+
+      const token = crypto.randomBytes(24).toString('hex');
+      sessions.set(token, account.email);
+
+      const { password: _, ...profileWithoutPassword } = profile;
+      return res.json({ message: "Connexion réussie.", token, user: profileWithoutPassword });
+    }
+
+    // 2) Sinon, comptes historiques : admin (.env) ou employés créés directement par un admin (data.json)
+    const users = readData();
+    const user = users.find(u => u.email?.toLowerCase() === emailLower && u.password === password);
     if (!user) {
       return res.status(401).json({ message: "E-mail ou mot de passe incorrect." });
     }
@@ -326,6 +393,108 @@ app.post('/api/upload-avatar', authenticate, upload.single('avatar'), (req, res)
   // URL relative : le front-end préfixe déjà avec API_URL, une URL absolue ici cassait l'image.
   const avatarUrl = `/uploads/${req.file.filename}`;
   res.json({ message: "Succès", avatarUrl });
+});
+
+// ==========================================
+// ROUTES API - COMPTES D'AUTO-INSCRIPTION (accounts.json)
+// ==========================================
+// Réservées aux admins : un compte créé via /api/signup n'est jamais une
+// fiche employé automatiquement. L'admin doit soit le lier à une fiche
+// employé existante (un employé peut avoir plusieurs comptes), soit créer
+// une nouvelle fiche employé à partir de ce compte.
+
+app.get('/api/accounts', authenticate, requireAdmin, (req, res) => {
+  try {
+    const accounts = readAccounts().map(({ password, ...rest }) => rest);
+    res.json(accounts);
+  } catch (err) {
+    res.status(500).json({ message: "Erreur lors de la récupération des comptes." });
+  }
+});
+
+// Lier un compte en attente à une fiche employé EXISTANTE (ex: un employé
+// qui s'auto-inscrit avec une deuxième adresse e-mail).
+app.put('/api/accounts/:id/link', authenticate, requireAdmin, (req, res) => {
+  try {
+    const { id } = req.params;
+    const { employeeEmail } = req.body;
+    if (!employeeEmail) return res.status(400).json({ message: "E-mail de la fiche employé manquant." });
+
+    const users = readData();
+    const employeeExists = users.some(u => u.email?.toLowerCase() === employeeEmail.toLowerCase());
+    if (!employeeExists) return res.status(404).json({ message: "Fiche employé introuvable." });
+
+    let accounts = readAccounts();
+    const index = accounts.findIndex(a => String(a.id) === String(id));
+    if (index === -1) return res.status(404).json({ message: "Compte introuvable." });
+
+    accounts[index].linkedEmployeeEmail = employeeEmail;
+    accounts[index].status = 'active';
+    writeAccounts(accounts);
+
+    res.json({ message: "Compte lié à la fiche employé et activé.", account: accounts[index] });
+  } catch (err) {
+    res.status(500).json({ message: "Erreur lors de la liaison du compte." });
+  }
+});
+
+// Créer une NOUVELLE fiche employé à partir d'un compte en attente.
+app.put('/api/accounts/:id/create-employee', authenticate, requireAdmin, (req, res) => {
+  try {
+    const { id } = req.params;
+    let accounts = readAccounts();
+    const index = accounts.findIndex(a => String(a.id) === String(id));
+    if (index === -1) return res.status(404).json({ message: "Compte introuvable." });
+    const account = accounts[index];
+
+    let users = readData();
+    if (users.some(u => u.email?.toLowerCase() === account.email.toLowerCase())) {
+      return res.status(400).json({ message: "Une fiche employé existe déjà avec cet e-mail." });
+    }
+
+    const newEmployee = {
+      id: Date.now(),
+      name: account.name,
+      email: account.email,
+      role: 'Collaborateur',
+      department: 'Général',
+      accountType: 'employee',
+      contractType: 'CDI',
+      phone: 'Non renseigné',
+      address: 'Non renseignée',
+      manager: 'Directeur Général',
+      remuneration: {
+        baseSalary: '0 Ar',
+        retentions: { irsa: '0 Ar', cnaps: '0 Ar', ostie: '0 Ar' }
+      },
+      onboardingDocs: { idCard: false, signedContract: false, rib: false }
+    };
+    users.push(newEmployee);
+    writeData(users);
+
+    accounts[index].linkedEmployeeEmail = newEmployee.email;
+    accounts[index].status = 'active';
+    writeAccounts(accounts);
+
+    res.status(201).json({ message: "Fiche employé créée et compte activé.", employee: newEmployee });
+  } catch (err) {
+    res.status(500).json({ message: "Erreur lors de la création de la fiche employé." });
+  }
+});
+
+app.delete('/api/accounts/:id', authenticate, requireAdmin, (req, res) => {
+  try {
+    const { id } = req.params;
+    let accounts = readAccounts();
+    const filtered = accounts.filter(a => String(a.id) !== String(id));
+    if (filtered.length === accounts.length) {
+      return res.status(404).json({ message: "Compte introuvable." });
+    }
+    writeAccounts(filtered);
+    res.json({ message: "Compte supprimé." });
+  } catch (err) {
+    res.status(500).json({ message: "Erreur lors de la suppression du compte." });
+  }
 });
 
 // ==========================================
