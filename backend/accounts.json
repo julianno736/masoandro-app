@@ -1,0 +1,45 @@
+[
+  {
+    "id": 1786686817070,
+    "name": "Firu",
+    "email": "elis02@gmail.com",
+    "password": "12345678",
+    "status": "active",
+    "linkedEmployeeEmail": "elis02@gmail.com"
+  },
+  {
+    "id": 1786693586883,
+    "name": "Elis Julianno",
+    "email": "elisjul02@gmail.com",
+    "password": "JULIANNO",
+    "status": "active",
+    "linkedEmployeeEmail": "elisjul02@gmail.com"
+  },
+  {
+    "id": 1786697870597,
+    "name": "RAKOTONANDRASANA Elis Julianno",
+    "email": "E123@gmail.com",
+    "password": "12345678",
+    "status": "active",
+    "linkedEmployeeEmail": "E123@gmail.com",
+    "role": "Dev",
+    "department": "Marketing",
+    "contractType": "Stage",
+    "phone": "0384010192",
+    "address": "Mausole",
+    "manager": "Directeur Général",
+    "remuneration": {
+      "baseSalary": "10000000 Ar",
+      "retentions": {
+        "irsa": "1930000 Ar",
+        "cnaps": "100000 Ar",
+        "ostie": "100000 Ar"
+      }
+    },
+    "avatarUrl": "/uploads/1786697870582-256860899.jpg",
+    "idDocument": {
+      "name": "PATENTE (1).pdf",
+      "url": "/uploads/1786697870589-773701155.pdf"
+    }
+  }
+]

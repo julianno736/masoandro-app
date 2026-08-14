@@ -24,5 +24,31 @@
       "signedContract": true,
       "rib": true
     }
+  },
+  {
+    "id": 1786697973954,
+    "name": "RAKOTONANDRASANA Elis Julianno",
+    "email": "E123@gmail.com",
+    "role": "Dev",
+    "department": "Marketing",
+    "accountType": "employee",
+    "contractType": "Stage",
+    "phone": "0384010192",
+    "address": "Mausole",
+    "manager": "Directeur Général",
+    "avatarUrl": "/uploads/1786697870582-256860899.jpg",
+    "remuneration": {
+      "baseSalary": "10000000 Ar",
+      "retentions": {
+        "irsa": "1930000 Ar",
+        "cnaps": "100000 Ar",
+        "ostie": "100000 Ar"
+      }
+    },
+    "onboardingDocs": {
+      "idCard": true,
+      "signedContract": false,
+      "rib": false
+    }
   }
 ]

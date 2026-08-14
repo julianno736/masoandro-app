@@ -22,12 +22,30 @@ function App() {
   const [isLoggingIn, setIsLoggingIn] = useState(false);
 
   // --- ÉTATS FORMULAIRE D'INSCRIPTION / CRÉATION DE COMPTE ---
+  // ⭐ L'inscription est désormais COMPLÈTE : elle capture toutes les informations
+  // d'une fiche employé (identité, poste, contrat, coordonnées, rémunération,
+  // photo, pièce d'identité). L'admin n'a ensuite plus qu'à APPROUVER le dossier
+  // pour confirmer que la personne est bien un employé de la société — aucune
+  // ressaisie n'est nécessaire de son côté.
   const [isRegistering, setIsRegistering] = useState(false);
   const [registerName, setRegisterName] = useState('');
   const [registerEmail, setRegisterEmail] = useState('');
   const [registerPassword, setRegisterPassword] = useState('');
+  const [registerRole, setRegisterRole] = useState('');
+  const [registerDepartment, setRegisterDepartment] = useState('Marketing');
+  const [registerContractType, setRegisterContractType] = useState('CDI');
+  const [registerPhone, setRegisterPhone] = useState('');
+  const [registerAddress, setRegisterAddress] = useState('');
+  const [registerManager, setRegisterManager] = useState('');
+  const [registerBaseSalary, setRegisterBaseSalary] = useState('');
+  const [registerIrsa, setRegisterIrsa] = useState('');
+  const [registerCnaps, setRegisterCnaps] = useState('');
+  const [registerOstie, setRegisterOstie] = useState('');
+  const [registerAvatarFile, setRegisterAvatarFile] = useState(null);
+  const [registerIdDocFile, setRegisterIdDocFile] = useState(null);
   const [registerError, setRegisterError] = useState('');
   const [registerSuccess, setRegisterSuccess] = useState('');
+  const [isSubmittingRegistration, setIsSubmittingRegistration] = useState(false);
 
   // --- ÉTATS PARAMÈTRES GLOBAUX & MODE SOMBRE ---
   const [companyName, setCompanyName] = useState('MASOANDRO');
@@ -93,6 +111,7 @@ function App() {
   const [pendingAccounts, setPendingAccounts] = useState([]);
   const [linkingAccountId, setLinkingAccountId] = useState(null);
   const [linkTargetEmail, setLinkTargetEmail] = useState('');
+  const [expandedAccountId, setExpandedAccountId] = useState(null);
 
   const isAdmin = currentUser?.accountType === 'admin';
 
@@ -109,6 +128,22 @@ function App() {
       setIrsa('');
     }
   }, [baseSalary, cnapsRate, ostieRate]);
+
+  // Estimation automatique des retenues (IRSA / CNaPS / OSTIE) pour le formulaire
+  // d'inscription complet, sur le même principe que le formulaire admin ci-dessus.
+  useEffect(() => {
+    const salary = parseFloat(String(registerBaseSalary).replace(/\s/g, '')) || 0;
+    if (salary > 0) {
+      setRegisterCnaps(Math.round(salary * cnapsRate));
+      setRegisterOstie(Math.round(salary * ostieRate));
+      const irsaEst = salary > 350000 ? Math.round((salary - 350000) * 0.20) : 0;
+      setRegisterIrsa(irsaEst);
+    } else {
+      setRegisterCnaps('');
+      setRegisterOstie('');
+      setRegisterIrsa('');
+    }
+  }, [registerBaseSalary, cnapsRate, ostieRate]);
 
   // --- RESTAURER LA SESSION AU CHARGEMENT DE L'APP ---
   // Si un token existe déjà (rafraîchissement de page), on vérifie qu'il est toujours valide
@@ -295,46 +330,93 @@ function App() {
     }
   };
 
-  // --- GESTION DE LA CRÉATION DE COMPTE ---
+  const resetRegisterForm = () => {
+    setRegisterName('');
+    setRegisterEmail('');
+    setRegisterPassword('');
+    setRegisterRole('');
+    setRegisterDepartment('Marketing');
+    setRegisterContractType('CDI');
+    setRegisterPhone('');
+    setRegisterAddress('');
+    setRegisterManager('');
+    setRegisterBaseSalary('');
+    setRegisterIrsa('');
+    setRegisterCnaps('');
+    setRegisterOstie('');
+    setRegisterAvatarFile(null);
+    setRegisterIdDocFile(null);
+  };
+
+  // --- GESTION DE LA CRÉATION DE COMPTE (INSCRIPTION COMPLÈTE) ---
+  // ⭐ Toutes les infos d'une fiche employé sont saisies ici. L'admin n'aura ensuite
+  // qu'à approuver ("Créer une fiche") pour activer le compte : les données du
+  // dossier d'inscription sont reprises telles quelles, sans ressaisie.
   const handleRegisterSubmit = async (e) => {
     e.preventDefault();
     setRegisterError('');
     setRegisterSuccess('');
 
     if (!registerName || !registerEmail || !registerPassword) {
-      setRegisterError("Veuillez remplir tous les champs obligatoires.");
+      setRegisterError("Veuillez remplir vos identifiants (nom, e-mail, mot de passe).");
       return;
     }
     if (registerPassword.length < 8) {
       setRegisterError("Le mot de passe doit contenir au moins 8 caractères.");
       return;
     }
+    if (!registerRole || !registerPhone || !registerAddress) {
+      setRegisterError("Veuillez compléter toutes les informations professionnelles obligatoires (poste, téléphone, adresse).");
+      return;
+    }
+    if (!registerIdDocFile) {
+      setRegisterError("Merci de joindre une pièce d'identité (CIN / Passeport) pour permettre à l'administrateur de vérifier votre dossier.");
+      return;
+    }
 
+    setIsSubmittingRegistration(true);
     try {
+      const formData = new FormData();
+      formData.append('name', registerName);
+      formData.append('email', registerEmail);
+      formData.append('password', registerPassword);
+      formData.append('role', registerRole);
+      formData.append('department', registerDepartment);
+      formData.append('contractType', registerContractType);
+      formData.append('phone', registerPhone);
+      formData.append('address', registerAddress);
+      formData.append('manager', registerManager);
+      formData.append('baseSalary', registerBaseSalary);
+      formData.append('irsa', registerIrsa);
+      formData.append('cnaps', registerCnaps);
+      formData.append('ostie', registerOstie);
+      if (registerAvatarFile) formData.append('avatar', registerAvatarFile);
+      if (registerIdDocFile) formData.append('idDocument', registerIdDocFile);
+
       const response = await fetch(`${API_URL}/api/signup`, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ name: registerName, email: registerEmail, password: registerPassword })
+        body: formData
       });
 
       const data = await response.json();
 
       if (response.ok) {
-        setRegisterSuccess("✨ Compte créé avec succès ! Un administrateur doit valider votre compte avant votre première connexion.");
+        setRegisterSuccess("✨ Dossier d'inscription complet envoyé avec succès ! Un administrateur doit valider votre dossier avant votre première connexion.");
+        const submittedEmail = registerEmail;
         setTimeout(() => {
           setIsRegistering(false);
           setRegisterSuccess('');
-          setLoginEmail(registerEmail);
-          setRegisterName('');
-          setRegisterEmail('');
-          setRegisterPassword('');
-        }, 1500);
+          setLoginEmail(submittedEmail);
+          resetRegisterForm();
+        }, 2000);
       } else {
         setRegisterError(data.message || "Erreur lors de la création du compte.");
       }
     } catch (err) {
       setRegisterError("Erreur de connexion : Vérifiez que votre serveur Node est bien allumé !");
       console.error("Erreur d'inscription :", err);
+    } finally {
+      setIsSubmittingRegistration(false);
     }
   };
 
@@ -682,15 +764,17 @@ function App() {
   };
 
   // 5C. CRÉER UNE NOUVELLE FICHE EMPLOYÉ À PARTIR D'UN COMPTE EN ATTENTE
+  // ⭐ APPROBATION : reprend automatiquement toutes les infos saisies à l'inscription
+  // (poste, département, contrat, coordonnées, rémunération, pièce d'identité).
   const handleCreateEmployeeFromAccount = async (accountId, accountName) => {
-    if (!window.confirm(`Créer une nouvelle fiche employé pour ${accountName} ?`)) return;
+    if (!window.confirm(`Approuver le dossier de ${accountName} et créer sa fiche employé avec les informations fournies à l'inscription ?`)) return;
     try {
       const response = await fetch(`${API_URL}/api/accounts/${accountId}/create-employee`, {
         method: 'PUT',
         headers: authHeaders()
       });
       if (response.ok) {
-        alert("✅ Fiche employé créée et compte activé.");
+        alert("✅ Dossier approuvé : fiche employé créée et compte activé.");
         fetchAccounts();
         fetchUsers();
       } else {
@@ -937,12 +1021,12 @@ function App() {
   // ==========================================
   if (!currentUser) {
     return (
-      <div style={{ display: 'flex', height: '100vh', width: '100vw', alignItems: 'center', justifyContent: 'center', background: darkMode ? '#0f172a' : 'linear-gradient(135deg, #0f172a 0%, #1e3a8a 100%)', fontFamily: 'Inter, sans-serif' }}>
-        <div style={{ background: darkMode ? '#1e293b' : '#ffffff', color: darkMode ? '#f8fafc' : '#1e293b', padding: '40px', borderRadius: '24px', width: '100%', maxWidth: '420px', boxShadow: '0 20px 25px -5px rgba(0, 0, 0, 0.3)', border: darkMode ? '1px solid #334155' : '1px solid #e2e8f0' }}>
+      <div style={{ display: 'flex', height: '100vh', width: '100vw', alignItems: 'center', justifyContent: 'center', background: darkMode ? '#0f172a' : 'linear-gradient(135deg, #0f172a 0%, #1e3a8a 100%)', fontFamily: 'Inter, sans-serif', padding: '24px 0' }}>
+        <div style={{ background: darkMode ? '#1e293b' : '#ffffff', color: darkMode ? '#f8fafc' : '#1e293b', padding: '40px', borderRadius: '24px', width: '100%', maxWidth: isRegistering ? '620px' : '420px', maxHeight: '92vh', overflowY: 'auto', boxShadow: '0 20px 25px -5px rgba(0, 0, 0, 0.3)', border: darkMode ? '1px solid #334155' : '1px solid #e2e8f0' }}>
 
           <div style={{ textAlign: 'center', marginBottom: '30px' }}>
             <img src={logo} alt={companyName} style={{ height: '180px', width: 'auto', filter: 'drop-shadow(0 0 8px rgba(251, 191, 36, 0.3))' }} />
-            <p style={{ margin: 0, color: darkMode ? '#94a3b8' : '#64748b', fontSize: '14px' }}>{isRegistering ? 'Création de Compte RH' : 'Portail de Connexion RH'}</p>
+            <p style={{ margin: 0, color: darkMode ? '#94a3b8' : '#64748b', fontSize: '14px' }}>{isRegistering ? "Dossier d'inscription complet RH" : 'Portail de Connexion RH'}</p>
           </div>
 
           {!isRegistering ? (
@@ -997,49 +1081,119 @@ function App() {
             <>
               {registerError && <div style={{ background: darkMode ? '#7f1d1d' : '#fff5f5', color: darkMode ? '#fca5a5' : '#c53030', padding: '12px', borderRadius: '10px', fontSize: '13.5px', marginBottom: '20px', border: darkMode ? '1px solid #991b1b' : '1px solid #feb2b2' }}>{registerError}</div>}
               {registerSuccess && <div style={{ background: darkMode ? '#064e3b' : '#ecfdf5', color: darkMode ? '#6ee7b7' : '#047857', padding: '12px', borderRadius: '10px', fontSize: '13.5px', marginBottom: '20px', border: darkMode ? '1px solid #065f46' : '1px solid #a7f3d0' }}>{registerSuccess}</div>}
+              <div style={{ background: darkMode ? '#0f172a' : '#eff6ff', border: darkMode ? '1px solid #334155' : '1px solid #bfdbfe', color: darkMode ? '#93c5fd' : '#1e40af', padding: '10px 14px', borderRadius: '10px', fontSize: '12.5px', marginBottom: '20px' }}>
+                ℹ️ Ce formulaire constitue votre dossier employé complet. Une fois validé par un administrateur, votre fiche est créée automatiquement avec toutes ces informations — aucune ressaisie ne sera nécessaire.
+              </div>
 
-              <form onSubmit={handleRegisterSubmit} style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
-                <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
-                  <label style={{ fontSize: '13px', fontWeight: '600', color: darkMode ? '#cbd5e1' : '#334155' }}>Nom complet</label>
-                  <input
-                    type="text"
-                    placeholder="ex: Rova Andriamahefa"
-                    value={registerName}
-                    onChange={(e) => setRegisterName(e.target.value)}
-                    style={{ padding: '12px 16px', borderRadius: '10px', border: darkMode ? '1px solid #475569' : '1px solid #cbd5e1', background: darkMode ? '#0f172a' : '#fff', color: darkMode ? '#fff' : '#000', fontSize: '14px', outline: 'none' }}
-                    required
-                  />
+              <form onSubmit={handleRegisterSubmit} style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
+
+                {/* --- Identifiants de connexion --- */}
+                <div>
+                  <h4 style={{ margin: '0 0 12px 0', fontSize: '12.5px', color: darkMode ? '#94a3b8' : '#64748b', textTransform: 'uppercase', borderBottom: darkMode ? '2px solid #334155' : '2px solid #f1f5f9', paddingBottom: '6px' }}>Identifiants de connexion</h4>
+                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '14px' }}>
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
+                      <label style={{ fontSize: '13px', fontWeight: '600', color: darkMode ? '#cbd5e1' : '#334155' }}>Nom complet *</label>
+                      <input type="text" placeholder="ex: Rova Andriamahefa" value={registerName} onChange={(e) => setRegisterName(e.target.value)} style={{ padding: '11px 14px', borderRadius: '10px', border: darkMode ? '1px solid #475569' : '1px solid #cbd5e1', background: darkMode ? '#0f172a' : '#fff', color: darkMode ? '#fff' : '#000', fontSize: '14px' }} required />
+                    </div>
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
+                      <label style={{ fontSize: '13px', fontWeight: '600', color: darkMode ? '#cbd5e1' : '#334155' }}>Adresse E-mail *</label>
+                      <input type="email" placeholder="ex: rova@masoandro.com" value={registerEmail} onChange={(e) => setRegisterEmail(e.target.value)} style={{ padding: '11px 14px', borderRadius: '10px', border: darkMode ? '1px solid #475569' : '1px solid #cbd5e1', background: darkMode ? '#0f172a' : '#fff', color: darkMode ? '#fff' : '#000', fontSize: '14px' }} required />
+                    </div>
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: '6px', gridColumn: '1 / -1' }}>
+                      <label style={{ fontSize: '13px', fontWeight: '600', color: darkMode ? '#cbd5e1' : '#334155' }}>Mot de passe (8 caractères min.) *</label>
+                      <input type="password" placeholder="••••••••" value={registerPassword} onChange={(e) => setRegisterPassword(e.target.value)} style={{ padding: '11px 14px', borderRadius: '10px', border: darkMode ? '1px solid #475569' : '1px solid #cbd5e1', background: darkMode ? '#0f172a' : '#fff', color: darkMode ? '#fff' : '#000', fontSize: '14px' }} required />
+                    </div>
+                  </div>
                 </div>
 
-                <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
-                  <label style={{ fontSize: '13px', fontWeight: '600', color: darkMode ? '#cbd5e1' : '#334155' }}>Adresse E-mail</label>
-                  <input
-                    type="email"
-                    placeholder="ex: rova@masoandro.com"
-                    value={registerEmail}
-                    onChange={(e) => setRegisterEmail(e.target.value)}
-                    style={{ padding: '12px 16px', borderRadius: '10px', border: darkMode ? '1px solid #475569' : '1px solid #cbd5e1', background: darkMode ? '#0f172a' : '#fff', color: darkMode ? '#fff' : '#000', fontSize: '14px', outline: 'none' }}
-                    required
-                  />
+                {/* --- Informations professionnelles --- */}
+                <div>
+                  <h4 style={{ margin: '0 0 12px 0', fontSize: '12.5px', color: darkMode ? '#94a3b8' : '#64748b', textTransform: 'uppercase', borderBottom: darkMode ? '2px solid #334155' : '2px solid #f1f5f9', paddingBottom: '6px' }}>Informations professionnelles</h4>
+                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '14px' }}>
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
+                      <label style={{ fontSize: '13px', fontWeight: '600', color: darkMode ? '#cbd5e1' : '#334155' }}>Intitulé du poste *</label>
+                      <input type="text" placeholder="ex: Développeur" value={registerRole} onChange={(e) => setRegisterRole(e.target.value)} style={{ padding: '11px 14px', borderRadius: '10px', border: darkMode ? '1px solid #475569' : '1px solid #cbd5e1', background: darkMode ? '#0f172a' : '#fff', color: darkMode ? '#fff' : '#000', fontSize: '14px' }} required />
+                    </div>
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
+                      <label style={{ fontSize: '13px', fontWeight: '600', color: darkMode ? '#cbd5e1' : '#334155' }}>Département</label>
+                      <select value={registerDepartment} onChange={(e) => setRegisterDepartment(e.target.value)} style={{ padding: '11px 14px', borderRadius: '10px', border: darkMode ? '1px solid #475569' : '1px solid #cbd5e1', background: darkMode ? '#0f172a' : '#fff', color: darkMode ? '#fff' : '#000', fontSize: '14px' }}>
+                        <option value="Marketing">Marketing</option>
+                        <option value="Technique">Technique</option>
+                        <option value="Finance">Finance</option>
+                        <option value="Direction">Direction</option>
+                      </select>
+                    </div>
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
+                      <label style={{ fontSize: '13px', fontWeight: '600', color: darkMode ? '#cbd5e1' : '#334155' }}>Type de contrat</label>
+                      <select value={registerContractType} onChange={(e) => setRegisterContractType(e.target.value)} style={{ padding: '11px 14px', borderRadius: '10px', border: darkMode ? '1px solid #475569' : '1px solid #cbd5e1', background: darkMode ? '#0f172a' : '#fff', color: darkMode ? '#fff' : '#000', fontSize: '14px' }}>
+                        <option value="CDI">CDI</option>
+                        <option value="CDD">CDD</option>
+                        <option value="Stage">Stage</option>
+                        <option value="Freelence">Freelence</option>
+                      </select>
+                    </div>
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
+                      <label style={{ fontSize: '13px', fontWeight: '600', color: darkMode ? '#cbd5e1' : '#334155' }}>Manager / Responsable</label>
+                      <input type="text" placeholder="ex: Directeur Général" value={registerManager} onChange={(e) => setRegisterManager(e.target.value)} style={{ padding: '11px 14px', borderRadius: '10px', border: darkMode ? '1px solid #475569' : '1px solid #cbd5e1', background: darkMode ? '#0f172a' : '#fff', color: darkMode ? '#fff' : '#000', fontSize: '14px' }} />
+                    </div>
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
+                      <label style={{ fontSize: '13px', fontWeight: '600', color: darkMode ? '#cbd5e1' : '#334155' }}>Numéro de téléphone *</label>
+                      <input type="text" placeholder="ex: +261 32 88 456 12" value={registerPhone} onChange={(e) => setRegisterPhone(e.target.value)} style={{ padding: '11px 14px', borderRadius: '10px', border: darkMode ? '1px solid #475569' : '1px solid #cbd5e1', background: darkMode ? '#0f172a' : '#fff', color: darkMode ? '#fff' : '#000', fontSize: '14px' }} required />
+                    </div>
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
+                      <label style={{ fontSize: '13px', fontWeight: '600', color: darkMode ? '#cbd5e1' : '#334155' }}>Adresse résidentielle *</label>
+                      <input type="text" placeholder="ex: Lot II M 45 Antanimena" value={registerAddress} onChange={(e) => setRegisterAddress(e.target.value)} style={{ padding: '11px 14px', borderRadius: '10px', border: darkMode ? '1px solid #475569' : '1px solid #cbd5e1', background: darkMode ? '#0f172a' : '#fff', color: darkMode ? '#fff' : '#000', fontSize: '14px' }} required />
+                    </div>
+                  </div>
                 </div>
 
-                <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
-                  <label style={{ fontSize: '13px', fontWeight: '600', color: darkMode ? '#cbd5e1' : '#334155' }}>Mot de passe (8 caractères min.)</label>
-                  <input
-                    type="password"
-                    placeholder="••••••••"
-                    value={registerPassword}
-                    onChange={(e) => setRegisterPassword(e.target.value)}
-                    style={{ padding: '12px 16px', borderRadius: '10px', border: darkMode ? '1px solid #475569' : '1px solid #cbd5e1', background: darkMode ? '#0f172a' : '#fff', color: darkMode ? '#fff' : '#000', fontSize: '14px', outline: 'none' }}
-                    required
-                  />
+                {/* --- Rémunération --- */}
+                <div>
+                  <h4 style={{ margin: '0 0 12px 0', fontSize: '12.5px', color: darkMode ? '#94a3b8' : '#64748b', textTransform: 'uppercase', borderBottom: darkMode ? '2px solid #334155' : '2px solid #f1f5f9', paddingBottom: '6px' }}>Rémunération (Madagascar)</h4>
+                  <div style={{ display: 'grid', gridTemplateColumns: '1.2fr 1fr 1fr 1fr', gap: '10px' }}>
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
+                      <label style={{ fontSize: '12px', fontWeight: '700', color: darkMode ? '#cbd5e1' : '#1e293b' }}>Salaire Brut Proposé</label>
+                      <input type="number" placeholder="Ex: 1400000" value={registerBaseSalary} onChange={(e) => setRegisterBaseSalary(e.target.value)} style={{ padding: '11px', borderRadius: '10px', border: darkMode ? '2px solid #3b82f6' : '2px solid #bfdbfe', background: darkMode ? '#1e293b' : '#fff', fontSize: '14px', fontWeight: '700', color: darkMode ? '#60a5fa' : '#1e3a8a' }} />
+                    </div>
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
+                      <label style={{ fontSize: '12px', fontWeight: '600', color: darkMode ? '#94a3b8' : '#475569' }}>IRSA (Impôt)</label>
+                      <input type="number" value={registerIrsa} readOnly style={{ padding: '11px', borderRadius: '10px', border: darkMode ? '1px solid #475569' : '1px solid #cbd5e1', background: darkMode ? '#0f172a' : '#f8fafc', color: '#f87171', fontWeight: '600' }} />
+                    </div>
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
+                      <label style={{ fontSize: '12px', fontWeight: '600', color: darkMode ? '#94a3b8' : '#475569' }}>CNaPS</label>
+                      <input type="number" value={registerCnaps} readOnly style={{ padding: '11px', borderRadius: '10px', border: darkMode ? '1px solid #475569' : '1px solid #cbd5e1', background: darkMode ? '#0f172a' : '#f8fafc', color: '#f87171', fontWeight: '600' }} />
+                    </div>
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
+                      <label style={{ fontSize: '12px', fontWeight: '600', color: darkMode ? '#94a3b8' : '#475569' }}>OSTIE</label>
+                      <input type="number" value={registerOstie} readOnly style={{ padding: '11px', borderRadius: '10px', border: darkMode ? '1px solid #475569' : '1px solid #cbd5e1', background: darkMode ? '#0f172a' : '#f8fafc', color: '#f87171', fontWeight: '600' }} />
+                    </div>
+                  </div>
+                </div>
+
+                {/* --- Photo & pièce d'identité --- */}
+                <div>
+                  <h4 style={{ margin: '0 0 12px 0', fontSize: '12.5px', color: darkMode ? '#94a3b8' : '#64748b', textTransform: 'uppercase', borderBottom: darkMode ? '2px solid #334155' : '2px solid #f1f5f9', paddingBottom: '6px' }}>Photo & Pièce d'identité</h4>
+                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '14px' }}>
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
+                      <label style={{ fontSize: '13px', fontWeight: '600', color: darkMode ? '#cbd5e1' : '#334155' }}>📸 Photo de profil</label>
+                      <input type="file" accept="image/*" onChange={(e) => setRegisterAvatarFile(e.target.files[0] || null)} style={{ fontSize: '13px', color: darkMode ? '#fff' : undefined }} />
+                      {registerAvatarFile && <span style={{ fontSize: '12px', color: '#10b981' }}>✓ {registerAvatarFile.name}</span>}
+                    </div>
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
+                      <label style={{ fontSize: '13px', fontWeight: '600', color: darkMode ? '#cbd5e1' : '#334155' }}>🪪 Pièce d'identité (CIN / Passeport) *</label>
+                      <input type="file" accept="image/*,.pdf" onChange={(e) => setRegisterIdDocFile(e.target.files[0] || null)} style={{ fontSize: '13px', color: darkMode ? '#fff' : undefined }} required />
+                      {registerIdDocFile && <span style={{ fontSize: '12px', color: '#10b981' }}>✓ {registerIdDocFile.name}</span>}
+                    </div>
+                  </div>
+                  <p style={{ margin: '8px 0 0 0', fontSize: '12px', color: darkMode ? '#94a3b8' : '#78716c' }}>La pièce d'identité permet à l'administrateur de vérifier que vous êtes bien un employé de la société avant d'approuver votre dossier.</p>
                 </div>
 
                 <button
                   type="submit"
-                  style={{ marginTop: '10px', padding: '13px', background: 'linear-gradient(135deg, #059669 0%, #047857 100%)', color: '#ffffff', border: 'none', borderRadius: '10px', fontWeight: '700', fontSize: '15px', cursor: 'pointer', boxShadow: '0 4px 6px -1px rgba(5, 150, 105, 0.3)' }}
+                  disabled={isSubmittingRegistration}
+                  style={{ marginTop: '4px', padding: '13px', background: 'linear-gradient(135deg, #059669 0%, #047857 100%)', color: '#ffffff', border: 'none', borderRadius: '10px', fontWeight: '700', fontSize: '15px', cursor: isSubmittingRegistration ? 'not-allowed' : 'pointer', opacity: isSubmittingRegistration ? 0.7 : 1, boxShadow: '0 4px 6px -1px rgba(5, 150, 105, 0.3)' }}
                 >
-                  S'inscrire
+                  {isSubmittingRegistration ? 'Envoi du dossier en cours...' : "Envoyer mon dossier d'inscription"}
                 </button>
               </form>
 
@@ -1234,35 +1388,61 @@ function App() {
               </div>
 
               {/* Comptes d'auto-inscription en attente (accounts.json) — visibles uniquement par l'admin.
-                  Ce ne sont PAS des fiches employés : l'admin choisit de les lier à une fiche
-                  existante (un employé peut avoir plusieurs comptes) ou d'en créer une nouvelle. */}
+                  ⭐ Le dossier est désormais complet (poste, département, contrat, coordonnées,
+                  rémunération, pièce d'identité) : l'admin peut le consulter puis l'APPROUVER
+                  ("Créer une fiche") sans rien ressaisir, ou le lier à une fiche existante, ou le rejeter. */}
               {isAdmin && pendingAccounts.length > 0 && (
                 <div style={{ marginTop: '28px', background: darkMode ? '#1e293b' : '#fffbeb', border: darkMode ? '1px solid #78350f' : '1px solid #fde68a', borderRadius: '14px', padding: '18px 20px' }}>
                   <h3 style={{ margin: '0 0 12px 0', fontSize: '15px', color: darkMode ? '#fcd34d' : '#92400e', display: 'flex', alignItems: 'center', gap: '8px' }}>
-                    ⏳ Comptes en attente de validation ({pendingAccounts.length})
+                    ⏳ Dossiers d'inscription en attente d'approbation ({pendingAccounts.length})
                   </h3>
                   <p style={{ margin: '0 0 14px 0', fontSize: '12.5px', color: darkMode ? '#94a3b8' : '#78716c' }}>
-                    Ce sont des comptes de connexion, pas des fiches employés. Liez-les à une fiche existante ou créez-en une nouvelle.
+                    Chaque dossier contient déjà toutes les informations employé. Vérifiez-les, puis approuvez pour créer la fiche automatiquement — ou liez-le à une fiche existante, ou rejetez-le.
                   </p>
                   <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
                     {pendingAccounts.map((account) => (
                       <div key={account.id} style={{ padding: '10px 14px', borderRadius: '10px', background: darkMode ? '#0f172a' : '#ffffff', border: darkMode ? '1px solid #334155' : '1px solid #fde68a' }}>
                         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: '10px' }}>
-                          <div>
-                            <div style={{ fontWeight: '600', color: darkMode ? '#f8fafc' : '#1e293b', fontSize: '14px' }}>{account.name}</div>
-                            <div style={{ fontSize: '12.5px', color: darkMode ? '#94a3b8' : '#64748b' }}>{account.email}</div>
+                          <div style={{ cursor: 'pointer' }} onClick={() => setExpandedAccountId(expandedAccountId === account.id ? null : account.id)}>
+                            <div style={{ fontWeight: '600', color: darkMode ? '#f8fafc' : '#1e293b', fontSize: '14px' }}>{account.name} {account.idDocument && <span style={{ marginLeft: '6px', fontSize: '11px', background: '#059669', color: '#fff', padding: '2px 8px', borderRadius: '10px', fontWeight: '700' }}>🪪 Pièce jointe</span>}</div>
+                            <div style={{ fontSize: '12.5px', color: darkMode ? '#94a3b8' : '#64748b' }}>{account.email} · {account.role || 'Poste non renseigné'} {account.department ? `· ${account.department}` : ''}</div>
                           </div>
                           <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
+                            <button
+                              onClick={() => setExpandedAccountId(expandedAccountId === account.id ? null : account.id)}
+                              style={{ background: darkMode ? '#334155' : '#f1f5f9', color: darkMode ? '#cbd5e1' : '#334155', border: darkMode ? '1px solid #475569' : '1px solid #cbd5e1', padding: '7px 14px', borderRadius: '6px', fontSize: '12.5px', fontWeight: '600', cursor: 'pointer' }}
+                            >
+                              {expandedAccountId === account.id ? '▲ Masquer le dossier' : '▼ Voir le dossier complet'}
+                            </button>
                             <button
                               onClick={() => setLinkingAccountId(linkingAccountId === account.id ? null : account.id)}
                               style={{ background: darkMode ? '#1e3a8a' : '#eff6ff', color: darkMode ? '#93c5fd' : '#1e40af', border: darkMode ? '1px solid #1e3a8a' : '1px solid #bfdbfe', padding: '7px 14px', borderRadius: '6px', fontSize: '12.5px', fontWeight: '600', cursor: 'pointer' }}
                             >
-                              🔗 Lier à un employé
+                              🔗 Lier à un employé existant
                             </button>
-                            <button onClick={() => handleCreateEmployeeFromAccount(account.id, account.name)} style={{ background: '#059669', color: '#fff', border: 'none', padding: '7px 14px', borderRadius: '6px', fontSize: '12.5px', fontWeight: '600', cursor: 'pointer' }}>➕ Créer une fiche</button>
+                            <button onClick={() => handleCreateEmployeeFromAccount(account.id, account.name)} style={{ background: '#059669', color: '#fff', border: 'none', padding: '7px 14px', borderRadius: '6px', fontSize: '12.5px', fontWeight: '600', cursor: 'pointer' }}>✅ Approuver le dossier</button>
                             <button onClick={() => handleRejectAccount(account.id, account.name)} style={{ background: darkMode ? '#7f1d1d' : '#fff5f5', color: darkMode ? '#fca5a5' : '#c53030', border: darkMode ? '1px solid #991b1b' : '1px solid #feb2b2', padding: '7px 14px', borderRadius: '6px', fontSize: '12.5px', fontWeight: '600', cursor: 'pointer' }}>🗑️ Rejeter</button>
                           </div>
                         </div>
+
+                        {expandedAccountId === account.id && (
+                          <div style={{ marginTop: '12px', paddingTop: '12px', borderTop: darkMode ? '1px dashed #334155' : '1px dashed #e2e8f0', display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: '10px', fontSize: '13px', color: darkMode ? '#cbd5e1' : '#334155' }}>
+                            <div>📞 <strong>Téléphone :</strong> {account.phone || 'Non renseigné'}</div>
+                            <div>🏠 <strong>Adresse :</strong> {account.address || 'Non renseignée'}</div>
+                            <div>🧑‍💼 <strong>Manager :</strong> {account.manager || '—'}</div>
+                            <div>📄 <strong>Contrat :</strong> {account.contractType || '—'}</div>
+                            <div>💰 <strong>Salaire brut :</strong> {account.remuneration?.baseSalary || '0 Ar'}</div>
+                            <div style={{ color: '#f87171' }}>➖ <strong>IRSA / CNaPS / OSTIE :</strong> {account.remuneration?.retentions?.irsa || '0 Ar'} / {account.remuneration?.retentions?.cnaps || '0 Ar'} / {account.remuneration?.retentions?.ostie || '0 Ar'}</div>
+                            {account.idDocument && (
+                              <div style={{ gridColumn: '1 / -1' }}>
+                                🪪 <strong>Pièce d'identité :</strong>{' '}
+                                <a href={`${API_URL}${account.idDocument.url}`} target="_blank" rel="noopener noreferrer" style={{ color: darkMode ? '#60a5fa' : '#2563eb', fontWeight: '600' }}>
+                                  {account.idDocument.name || 'Voir le document'}
+                                </a>
+                              </div>
+                            )}
+                          </div>
+                        )}
 
                         {linkingAccountId === account.id && (
                           <div style={{ marginTop: '10px', display: 'flex', gap: '8px', alignItems: 'center', paddingTop: '10px', borderTop: darkMode ? '1px dashed #334155' : '1px dashed #e2e8f0' }}>

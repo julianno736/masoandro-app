@@ -204,43 +204,89 @@ const seedAdminAccount = () => {
 // ROUTES API - AUTHENTIFICATION & INSCRIPTION
 // ==========================================
 
-app.post('/api/signup', (req, res) => {
-  try {
-    const accounts = readAccounts();
-    const { name, email, password } = req.body;
+// ⭐ Inscription COMPLÈTE : le formulaire d'inscription capture désormais toutes les
+// informations d'une fiche employé (poste, département, contrat, téléphone, adresse,
+// manager, salaire, retenues) + éventuellement une photo de profil et une pièce
+// d'identité. Le compte reste "pending" (en attente) tant qu'un administrateur ne l'a
+// pas approuvé : l'approbation ne fait plus que CONFIRMER que la personne est bien un
+// employé de la société — elle n'a plus besoin de resaisir la moindre information.
+app.post(
+  '/api/signup',
+  upload.fields([{ name: 'avatar', maxCount: 1 }, { name: 'idDocument', maxCount: 1 }]),
+  (req, res) => {
+    try {
+      const accounts = readAccounts();
+      const {
+        name, email, password,
+        role, department, contractType,
+        phone, address, manager,
+        baseSalary, irsa, cnaps, ostie
+      } = req.body;
 
-    if (!email || !password) {
-      return res.status(400).json({ message: "L'e-mail et le mot de passe sont obligatoires." });
+      if (!name || !email || !password) {
+        return res.status(400).json({ message: "Le nom, l'e-mail et le mot de passe sont obligatoires." });
+      }
+      if (!role || !department || !phone || !address) {
+        return res.status(400).json({ message: "Merci de compléter toutes les informations professionnelles (poste, département, téléphone, adresse)." });
+      }
+
+      const exists = accounts.find(a => a.email?.toLowerCase() === email.toLowerCase());
+      if (exists) {
+        return res.status(400).json({ message: "Un compte existe déjà avec cet e-mail." });
+      }
+      const users = readData();
+      if (users.some(u => u.email?.toLowerCase() === email.toLowerCase())) {
+        return res.status(400).json({ message: "Une fiche employé existe déjà avec cet e-mail." });
+      }
+
+      const avatarFile = req.files?.avatar?.[0];
+      const idDocFile = req.files?.idDocument?.[0];
+
+      // ⭐ Le compte créé via l'auto-inscription N'EST PAS automatiquement une fiche
+      // employé active : il reste "pending" tant qu'un admin ne l'a pas approuvé.
+      // En revanche, toutes les infos nécessaires à la future fiche employé sont
+      // déjà stockées ici, prêtes à être reprises telles quelles à l'approbation.
+      const newAccount = {
+        id: Date.now(),
+        name,
+        email,
+        password,
+        status: 'pending', // pending | active
+        linkedEmployeeEmail: null,
+        role,
+        department,
+        contractType: contractType || 'CDI',
+        phone,
+        address,
+        manager: manager || 'Directeur Général',
+        remuneration: {
+          baseSalary: baseSalary ? `${baseSalary} Ar` : "0 Ar",
+          retentions: {
+            irsa: irsa ? `${irsa} Ar` : "0 Ar",
+            cnaps: cnaps ? `${cnaps} Ar` : "0 Ar",
+            ostie: ostie ? `${ostie} Ar` : "0 Ar"
+          }
+        },
+        avatarUrl: avatarFile ? `/uploads/${avatarFile.filename}` : "",
+        idDocument: idDocFile
+          ? { name: idDocFile.originalname, url: `/uploads/${idDocFile.filename}` }
+          : null
+      };
+
+      accounts.push(newAccount);
+      writeAccounts(accounts);
+
+      const { password: _, ...accountWithoutPassword } = newAccount;
+      res.status(201).json({
+        message: "Inscription complète envoyée avec succès ! Votre dossier doit être validé par un administrateur avant votre première connexion.",
+        account: accountWithoutPassword
+      });
+    } catch (err) {
+      console.error("Erreur /api/signup :", err);
+      res.status(500).json({ message: "Erreur lors de la création du compte." });
     }
-
-    const exists = accounts.find(a => a.email?.toLowerCase() === email.toLowerCase());
-    if (exists) {
-      return res.status(400).json({ message: "Un compte existe déjà avec cet e-mail." });
-    }
-
-    // ⭐ Un compte créé via l'auto-inscription N'EST PAS une fiche employé.
-    // Il est stocké séparément (accounts.json), en attente qu'un admin le lie
-    // à une fiche employé existante (cas d'un employé avec plusieurs comptes)
-    // ou en crée une nouvelle à partir de ce compte.
-    const newAccount = {
-      id: Date.now(),
-      name: name || 'Utilisateur',
-      email,
-      password,
-      status: 'pending', // pending | active
-      linkedEmployeeEmail: null
-    };
-
-    accounts.push(newAccount);
-    writeAccounts(accounts);
-
-    const { password: _, ...accountWithoutPassword } = newAccount;
-    res.status(201).json({ message: "Compte créé avec succès ! Il doit être validé par un administrateur avant la première connexion.", account: accountWithoutPassword });
-  } catch (err) {
-    console.error("Erreur /api/signup :", err);
-    res.status(500).json({ message: "Erreur lors de la création du compte." });
   }
-});
+);
 
 app.post('/api/login', (req, res) => {
   try {
@@ -401,7 +447,8 @@ app.post('/api/upload-avatar', authenticate, upload.single('avatar'), (req, res)
 // Réservées aux admins : un compte créé via /api/signup n'est jamais une
 // fiche employé automatiquement. L'admin doit soit le lier à une fiche
 // employé existante (un employé peut avoir plusieurs comptes), soit créer
-// une nouvelle fiche employé à partir de ce compte.
+// une nouvelle fiche employé à partir de ce compte (ce qui reprend
+// désormais TOUTES les infos saisies à l'inscription, sans ressaisie).
 
 app.get('/api/accounts', authenticate, requireAdmin, (req, res) => {
   try {
@@ -439,6 +486,9 @@ app.put('/api/accounts/:id/link', authenticate, requireAdmin, (req, res) => {
 });
 
 // Créer une NOUVELLE fiche employé à partir d'un compte en attente.
+// ⭐ Reprend désormais TOUTES les infos saisies à l'inscription (poste, département,
+// contrat, téléphone, adresse, manager, rémunération, photo, pièce d'identité) :
+// l'admin n'a plus qu'à approuver, il ne ressaisit rien.
 app.put('/api/accounts/:id/create-employee', authenticate, requireAdmin, (req, res) => {
   try {
     const { id } = req.params;
@@ -456,21 +506,36 @@ app.put('/api/accounts/:id/create-employee', authenticate, requireAdmin, (req, r
       id: Date.now(),
       name: account.name,
       email: account.email,
-      role: 'Collaborateur',
-      department: 'Général',
+      role: account.role || 'Collaborateur',
+      department: account.department || 'Général',
       accountType: 'employee',
-      contractType: 'CDI',
-      phone: 'Non renseigné',
-      address: 'Non renseignée',
-      manager: 'Directeur Général',
-      remuneration: {
+      contractType: account.contractType || 'CDI',
+      phone: account.phone || 'Non renseigné',
+      address: account.address || 'Non renseignée',
+      manager: account.manager || 'Directeur Général',
+      avatarUrl: account.avatarUrl || "",
+      remuneration: account.remuneration || {
         baseSalary: '0 Ar',
         retentions: { irsa: '0 Ar', cnaps: '0 Ar', ostie: '0 Ar' }
       },
-      onboardingDocs: { idCard: false, signedContract: false, rib: false }
+      // La pièce d'identité fournie à l'inscription est déjà considérée comme reçue.
+      onboardingDocs: { idCard: !!account.idDocument, signedContract: false, rib: false }
     };
     users.push(newEmployee);
     writeData(users);
+
+    // Si une pièce d'identité a été jointe à l'inscription, on la rattache
+    // à la fiche employé fraîchement créée dans les pièces jointes.
+    if (account.idDocument) {
+      const attachments = readAttachments();
+      attachments.push({
+        id: Date.now(),
+        email: newEmployee.email,
+        name: account.idDocument.name,
+        url: account.idDocument.url
+      });
+      writeAttachments(attachments);
+    }
 
     accounts[index].linkedEmployeeEmail = newEmployee.email;
     accounts[index].status = 'active';
