@@ -877,7 +877,11 @@ function App() {
     }
   };
 
-  const handleUpdateLeaveStatus = async (id, newStatus) => {
+  // ⭐ Ajout d'une confirmation nommant explicitement l'employé avant tout changement de statut
+  const handleUpdateLeaveStatus = async (id, newStatus, employeeName) => {
+    const verbe = newStatus === 'Approuvé' ? 'approuver' : 'refuser';
+    if (!window.confirm(`Voulez-vous vraiment ${verbe} la demande de congé de ${employeeName} ?`)) return;
+
     try {
       const response = await fetch(`${API_URL}/api/leaves/${id}`, {
         method: 'PUT',
@@ -1229,7 +1233,6 @@ function App() {
         <nav className="sidebar-nav">
           <button className={`nav-item ${currentMenu === 'dashboard' ? 'active' : ''}`} onClick={() => setCurrentMenu('dashboard')}>📊 Tableau de Bord</button>
           <button className={`nav-item ${currentMenu === 'annuaire' ? 'active' : ''}`} onClick={() => setCurrentMenu('annuaire')}>👥 Annuaire & Listes</button>
-          <button className={`nav-item ${currentMenu === 'organigramme' ? 'active' : ''}`} onClick={() => setCurrentMenu('organigramme')}>🌳 Organigramme</button>
           <button className={`nav-item ${currentMenu === 'conges' ? 'active' : ''}`} onClick={() => setCurrentMenu('conges')}>📅 Congés & Absences</button>
           <button className={`nav-item ${currentMenu === 'Sanction' ? 'active' : ''}`} onClick={() => setCurrentMenu('Sanction')}>⚖️ Sanctions</button>
           {isAdmin && (
@@ -1467,9 +1470,6 @@ function App() {
             </div>
           )}
 
-          {/* VIEW: ORGANIGRAMME */}
-          {currentMenu === 'organigramme' && <div className="placeholder-section" style={{ color: darkMode ? '#f8fafc' : undefined }}><h2>🌳 Structure & Organigramme</h2><p style={{ color: darkMode ? '#94a3b8' : undefined }}>Visualisation de l'arbre hiérarchique en cours de développement.</p></div>}
-
           {/* VIEW: CONGÉS */}
           {currentMenu === 'conges' && (
             <div style={{ display: 'flex', flexDirection: 'column', gap: '24px', padding: '10px' }}>
@@ -1556,12 +1556,30 @@ function App() {
                     {leaveRequests.length === 0 ? (
                       <div style={{ color: '#9ca3af', padding: '20px', textAlign: 'center' }}>Aucune demande enregistrée pour le moment.</div>
                     ) : (
-                      leaveRequests.map((req) => (
+                      leaveRequests.map((req) => {
+                        const emp = users.find(u => u.email === req.employeeEmail);
+                        // Repli robuste : si l'ancienne demande n'a pas de employeeName enregistré,
+                        // on retombe sur le nom de la fiche employé, puis sur l'e-mail en dernier recours.
+                        const demandeurNom = req.employeeName || emp?.name || req.employeeEmail || 'Employé inconnu';
+                        return (
                         <div key={req.id} style={{ border: darkMode ? '1px solid #334155' : '1px solid #e2e8f0', borderRadius: '12px', padding: '14px', display: 'flex', flexDirection: 'column', gap: '10px', background: darkMode ? (req.status === 'Approuvé' ? '#064e3b' : req.status === 'Refusé' ? '#7f1d1d' : '#0f172a') : (req.status === 'Approuvé' ? '#f0fdf4' : req.status === 'Refusé' ? '#fff5f5' : '#fafafa') }}>
                           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
-                            <div>
-                              <strong style={{ color: darkMode ? '#f8fafc' : '#1e293b', fontSize: '15px' }}>{req.employeeName}</strong>
-                              <div style={{ fontSize: '12.5px', color: darkMode ? '#94a3b8' : '#64748b', marginTop: '2px' }}>{req.employeeEmail}</div>
+                            <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                              <img
+                                src={emp?.avatarUrl || `https://ui-avatars.com/api/?name=${encodeURIComponent(demandeurNom)}&background=1e40af&color=fff&size=64`}
+                                alt={demandeurNom}
+                                style={{ width: '38px', height: '38px', borderRadius: '50%', objectFit: 'cover', flexShrink: 0 }}
+                              />
+                              <div>
+                                <div style={{ fontSize: '11px', fontWeight: '700', textTransform: 'uppercase', letterSpacing: '0.4px', color: darkMode ? '#64748b' : '#94a3b8' }}>👤 Demandeur</div>
+                                <strong style={{ color: darkMode ? '#f8fafc' : '#1e293b', fontSize: '15.5px' }}>{demandeurNom}</strong>
+                                <div style={{ fontSize: '12.5px', color: darkMode ? '#94a3b8' : '#64748b', marginTop: '2px' }}>{req.employeeEmail}</div>
+                                {emp && (
+                                  <div style={{ fontSize: '12px', color: darkMode ? '#60a5fa' : '#2563eb', marginTop: '2px' }}>
+                                    {emp.role} · {emp.department}{emp.phone ? ` · 📞 ${emp.phone}` : ''}
+                                  </div>
+                                )}
+                              </div>
                             </div>
                             <span style={{ fontSize: '12px', fontWeight: '700', padding: '4px 10px', borderRadius: '20px', background: req.status === 'Approuvé' ? '#bbf7d0' : req.status === 'Refusé' ? '#fed7d7' : '#e2e8f0', color: req.status === 'Approuvé' ? '#166534' : req.status === 'Refusé' ? '#9b1c1c' : '#475569' }}>
                               {req.status}
@@ -1580,15 +1598,16 @@ function App() {
                             <div style={{ display: 'flex', gap: '8px', justifyContent: 'flex-end' }}>
                               {req.status === 'En attente' && (
                                 <>
-                                  <button onClick={() => handleUpdateLeaveStatus(req.id, 'Refusé')} style={{ padding: '6px 12px', background: darkMode ? '#1e293b' : '#fff', color: '#c53030', border: '1px solid #feb2b2', borderRadius: '6px', fontSize: '12px', fontWeight: '600', cursor: 'pointer' }}>❌ Refuser</button>
-                                  <button onClick={() => handleUpdateLeaveStatus(req.id, 'Approuvé')} style={{ padding: '6px 12px', background: '#10b981', color: '#fff', border: 'none', borderRadius: '6px', fontSize: '12px', fontWeight: '600', cursor: 'pointer' }}>✅ Approuver</button>
+                                  <button onClick={() => handleUpdateLeaveStatus(req.id, 'Refusé', demandeurNom)} style={{ padding: '6px 12px', background: darkMode ? '#1e293b' : '#fff', color: '#c53030', border: '1px solid #feb2b2', borderRadius: '6px', fontSize: '12px', fontWeight: '600', cursor: 'pointer' }}>❌ Refuser</button>
+                                  <button onClick={() => handleUpdateLeaveStatus(req.id, 'Approuvé', demandeurNom)} style={{ padding: '6px 12px', background: '#10b981', color: '#fff', border: 'none', borderRadius: '6px', fontSize: '12px', fontWeight: '600', cursor: 'pointer' }}>✅ Approuver</button>
                                 </>
                               )}
                               <button onClick={() => handleDeleteLeave(req.id)} style={{ padding: '6px 12px', background: darkMode ? '#1e293b' : '#fff', color: '#c53030', border: '1px solid #feb2b2', borderRadius: '6px', fontSize: '12px', fontWeight: '600', cursor: 'pointer' }}>🗑️ Supprimer</button>
                             </div>
                           )}
                         </div>
-                      ))
+                        );
+                      })
                     )}
                   </div>
                 </div>
@@ -1653,12 +1672,27 @@ function App() {
                     {sanctions.length === 0 ? (
                       <div style={{ color: '#9ca3af', padding: '20px', textAlign: 'center' }}>Aucune sanction enregistrée. Le registre disciplinaire est vierge.</div>
                     ) : (
-                      sanctions.map((sanc) => (
+                      sanctions.map((sanc) => {
+                        const emp = users.find(u => u.email === sanc.employeeEmail);
+                        return (
                         <div key={sanc.id} style={{ border: darkMode ? '1px solid #991b1b' : '1px solid #feb2b2', borderRadius: '12px', padding: '14px', display: 'flex', flexDirection: 'column', gap: '10px', background: darkMode ? '#7f1d1d' : '#fff5f5' }}>
                           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
-                            <div>
-                              <strong style={{ color: darkMode ? '#f8fafc' : '#1e293b', fontSize: '15px' }}>{sanc.employeeName}</strong>
-                              <div style={{ fontSize: '12.5px', color: darkMode ? '#cbd5e1' : '#64748b', marginTop: '2px' }}>{sanc.employeeEmail}</div>
+                            <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                              <img
+                                src={emp?.avatarUrl || `https://ui-avatars.com/api/?name=${encodeURIComponent(sanc.employeeName)}&background=991b1b&color=fff&size=64`}
+                                alt={sanc.employeeName}
+                                style={{ width: '38px', height: '38px', borderRadius: '50%', objectFit: 'cover', flexShrink: 0 }}
+                              />
+                              <div>
+                                <div style={{ fontSize: '11px', fontWeight: '700', textTransform: 'uppercase', letterSpacing: '0.4px', color: darkMode ? '#f87171' : '#b91c1c' }}>⚖️ Employé sanctionné</div>
+                                <strong style={{ color: darkMode ? '#f8fafc' : '#1e293b', fontSize: '15.5px' }}>{sanc.employeeName}</strong>
+                                <div style={{ fontSize: '12.5px', color: darkMode ? '#cbd5e1' : '#64748b', marginTop: '2px' }}>{sanc.employeeEmail}</div>
+                                {emp && (
+                                  <div style={{ fontSize: '12px', color: darkMode ? '#fca5a5' : '#b91c1c', marginTop: '2px' }}>
+                                    {emp.role} · {emp.department}{emp.phone ? ` · 📞 ${emp.phone}` : ''}
+                                  </div>
+                                )}
+                              </div>
                             </div>
                             <span style={{ fontSize: '12px', fontWeight: '700', padding: '4px 10px', borderRadius: '20px', background: '#fee2e2', color: '#991b1b' }}>
                               {sanc.type}
@@ -1676,7 +1710,8 @@ function App() {
                             </div>
                           )}
                         </div>
-                      ))
+                        );
+                      })
                     )}
                   </div>
                 </div>

@@ -1,14 +1,14 @@
 [
   {
-    "id": 1786708783875,
+    "id": 1786948598079,
     "employeeEmail": "admin@masoandro.com",
     "employeeName": "Administrateur",
     "type": "Permission Exceptionnelle",
-    "startDate": "2026-08-16",
-    "endDate": "2026-08-23",
-    "reason": "Urgent\n",
-    "numberOfDays": 8,
-    "remainingDaysAfter": 22,
-    "status": "Approuvé"
+    "startDate": "2026-08-18",
+    "endDate": "2026-08-20",
+    "reason": "raison familliale\n",
+    "numberOfDays": 3,
+    "remainingDaysAfter": 27,
+    "status": "Refusé"
   }
 ]
